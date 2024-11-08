@@ -23,7 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @SuppressWarnings({"unused", "SameParameterValue"})
 public class CucumberSummaryReporter implements ConcurrentEventListener {
 
-  // Logger Object
+  /**
+   * Logger Object
+   */
   protected static final Logger log = LogManager.getLogger(CucumberSummaryReporter.class);
 
   static class FeatureInfo {
@@ -41,13 +43,19 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
     }
   }
 
-  // Result Map to have Features, its Scenario and their results
+  /**
+   * Result Map to have Features, its Scenario and their results
+   */
   protected static final Map<String, Map<String, Status>> featureWiseResultMap = new ConcurrentHashMap<>();
 
-  // Result Map to have Feature file metadata
+  /**
+   * Result Map to have Feature file metadata
+   */
   private static final Map<String, FeatureInfo> featureFiles = new ConcurrentHashMap<>();
 
-  // To hold Runtime Test Users
+  /**
+   * To hold Runtime Test Users
+   */
   public static final Map<String, List<String>> testUsers = new ConcurrentHashMap<>();
 
   // Default Values
@@ -66,10 +74,9 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
 
   /**
    * Default Constructor
-   * 
+   *
    * @param arg
    *            param
-   *
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
   public CucumberSummaryReporter(String arg) {
@@ -252,7 +259,10 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       + "        }\n" + "\n" + "        .row {\n" + "            display: flex;\n"
       + "            justify-content: flex-start;\n" + "            align-items: center;\n"
       + "            flex-wrap: wrap;\n" + "            border-bottom: 1px solid gray;\n"
-      + "            width: 80%;\n" + "        }\n" + "\n" + "        .span-container {\n"
+      + "            width: 80%;\n" + "        }\n" + "        .summary-row {\n"
+      + "            border-bottom: none;\n" + "        }\n" + "\n" + "        table.summary td{\n"
+      + "            width: 50%;\n" + "        }\n" + "        #myPieChart {\n" + "            height: 250px;\n"
+      + "            width: 250px;\n" + "        }\n" + "        .span-container {\n"
       + "            display: flex;\n" + "            flex-basis: 95%;\n" + "        }\n" + "\n"
       + "        .span1 {\n" + "            flex-basis: 25%;\n" + "            text-align: left;\n"
       + "            padding: 10px;\n" + "            display: flex;\n" + "            align-items: center;\n"
@@ -302,10 +312,15 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       + "            background-color: grey;\n" + "        }\n" + "\n" + "        .circle:hover::after {\n"
       + "            content: attr(data-label);\n" + "            position: absolute;\n"
       + "            left: 40px;\n" + "            top: 0;\n" + "            white-space: nowrap;\n"
-      + "        }\n" + "\n" + "        @media (min-width:1024px) {\n" + "            .row {\n"
+      + "        }\n" + ".chart-container {\n" + "            display: flex;\n"
+      + "            justify-content: center;\n" + "            align-items: center;\n"
+      + "            margin-bottom: 20px;\n" + "        }\n" + "\n" + "        .chart-tooltip {\n"
+      + "            font-size: 14px;\n" + "            font-weight: bold;\n" + "            color: #333;\n"
+      + "        }\n" + "        @media (min-width:1024px) {\n" + "            .row {\n"
       + "                width: 80%;\n" + "            }\n" + "        }\n" + "\n"
       + "        @media (max-width:1024px) {\n" + "            .row {\n" + "                width: 100%;\n"
-      + "            }\n" + "        }\n" + "    </style>\n" + "    <script>\n"
+      + "            }\n" + "        }\n" + "    </style>\n"
+      + "<script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>\n" + "    <script>\n"
       + "        function toggleInnerDiv(rowId) {\n"
       + "            var innerDiv = document.getElementById(\"inner-div-\" + rowId);\n"
       + "            var arrowButton = document.getElementById(\"arrow-button-\" + rowId);\n"
@@ -317,8 +332,8 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       + "                innerDiv.style.display = \"none\";\n"
       + "                arrowButton.innerText = closedSymbol;\n" + "            }\n" + "        }\n"
       + "    </script>\n" + "</head>";
-  private static final String BODY_PART_ONE = "<body>\n" + "<div class=\"container\">\n" + "    <div class=\"row\">\n"
-      + "        <table class=\"summary\">\n" + "            <tbody>";
+  private static final String BODY_PART_ONE = "<body>\n" + "<div class=\"container\">\n"
+      + "    <div class=\"row summary-row\">\n" + "        <table class=\"summary\">\n" + "            <tbody>";
   private static final String REPORT_TITLE = "<tr>\n"
       + "                <th class=\"top\" colspan=\"3\">$reportTitle</th>\n" + "            </tr>";
   private static final String SHOW_ENV = "<tr>\n" + "                <td class=\"top\">Environment:</td>\n"
@@ -333,6 +348,34 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       + "                <td class=\"top\">Execution Date &amp; Time:</td>\n"
       + "                <td class=\"summary-cell\">$enterTimeStamp</td>\n" + "            </tr>";
   private static final String BODY_PART_TWO = "</tbody>\n" + "        </table>\n" + "    </div>\n"
+      + "<div class=\"chart-container\">\n" + "            <canvas id=\"myPieChart\"></canvas>\n"
+      + "        </div>\n" + "        <script>\n" + "            const data = {\n"
+      + "                labels: ['Pass', 'Fail', 'Skipped'],\n" + "                datasets: [{\n"
+      + "                    data: [$overallPassCount, $overallFailCount, ($overallCount-$overallPassCount-$overallFailCount)], // Replace these values with actual pass, fail, and skipped counts\n"
+      + "                    backgroundColor: [\"#00B000\", \"#FF3030\", \"#88AAFF\", \"#F5F28F\", \"#F5B975\"],\n"
+      + "                    hoverOffset: 5\n" + "                }]\n" + "            };\n" + "\n"
+      + "            // Configuration object\n" + "            const config = {\n"
+      + "                type: 'doughnut',\n" + "                data: data,\n" + "                options: {\n"
+      + "                    plugins: {\n" + "                        legend: {\n"
+      + "                            display: false // Hides the static labels\n" + "                        },\n"
+      + "                        tooltip: {\n" + "                            callbacks: {\n"
+      + "                                // This function sets the tooltip text on hover\n"
+      + "                                label: function (context) {\n"
+      + "                                    const label = context.label || '';\n"
+      + "                                    const value = context.raw;\n"
+      + "                                    const total = context.dataset.data.reduce((sum, val) => sum + val, 0);\n"
+      + "                                    const percentage = ((value / total) * 100).toFixed(2); // Calculate percentage\n"
+      + "                                    return `${label}: ${value} (${percentage}%)`;\n"
+      + "                                },\n" + "                                title: function () {\n"
+      + "                                    return ''; // Remove the default title\n"
+      + "                                }\n" + "                            },\n"
+      + "                            bodyFont: {\n" + "                                size: 14\n"
+      + "                            },\n" + "                            padding: 10\n"
+      + "                        }\n" + "                    },\n" + "                    responsive: true,\n"
+      + "                    maintainAspectRatio: false,\n" + "                    cutout: '50%'\n"
+      + "                }\n" + "            };\n" + "\n" + "            // Render the chart\n"
+      + "            const myPieChart = new Chart(\n" + "                document.getElementById('myPieChart'),\n"
+      + "                config\n" + "            );\n" + "        </script>\n"
       + "    <div class=\"row heading\">\n" + "        <div class=\"span-container\">\n"
       + "            <span class=\"span1\">Feature Name</span>\n"
       + "            <span class=\"span1\">Test Credentials</span>\n"
@@ -550,7 +593,10 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
     // Finalise the HTML code to be written to report using the tc, feature and
     // overall details generated above
     reportTemplate = reportTemplate.replace("$insertFeatureDetailsHere", featureDetails)
-        .replace("$insertSubTotalDetailsHere", overallDetails);
+        .replace("$insertSubTotalDetailsHere", overallDetails)
+        .replace("$overallPassCount", String.valueOf(overallPassCount))
+        .replace("$overallFailCount", String.valueOf(overallFailCount))
+        .replace("$overallCount", String.valueOf(overallCount));
 
     String filePathProvided = getPropertyValue("report.file.path");
     // Create a new HTML file named SummaryReport.html

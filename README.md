@@ -7,15 +7,23 @@
 
 This library generates a summary report for Cucumber test results, which can be integrated as a plugin/adapter for Cucumber. The report provides a concise overview of test execution, making it easier to analyze test stats or distribute a simplified summary, for example, via email.
 
-### Cucumber Summary Report
-<img src="src/main/java/img/Summary-Report.jpeg" alt="Cucumber Summary Report"/>
+### Cucumber Summary Report — All Pass
+<img src="src/main/java/img/Summary-Report-Pass.png" alt="Cucumber Summary Report - All Pass"/>
+
+### Cucumber Summary Report — Mixed Result
+<img src="src/main/java/img/Summary-Report-Pass-Fail.png" alt="Cucumber Summary Report - Pass & Fail"/>
+
+### Cucumber Summary Report — Hover On Doughnut to see details
+<img src="src/main/java/img/Summary-Report-Hover-Effect.png" alt="Cucumber Summary Report Hover Over Doughnut Chart"/>
+
 
 ### Cucumber Summary Report Extended
 <img src="src/main/java/img/Summary-Report-Extended.png" alt="Cucumber Summary Report Extended"/>
 
 ## Features
 * Generates a quick summary of Cucumber test results.
-* Provides statistics on test runs, including total, passed, failed, and skipped scenarios.
+* Doughnut Chart gives a visual representation of an Overall result
+* Provides statistics on test runs, including total, passed, failed scenarios.
 * Supports output formats suitable for presentations or email reports.
 * Easy integration as a Cucumber plugin/adapter.
 
@@ -30,7 +38,7 @@ To use Cucumber Summary Reporter, simply add the following dependency to your Ma
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
 </dependency>
 ```
 
