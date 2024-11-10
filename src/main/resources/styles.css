@@ -1,0 +1,264 @@
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    color: #090909;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    border-bottom: 1px solid #e9eaec;
+    width: 80%;
+}
+
+.summary-row {
+    border-bottom: none;
+}
+
+table.summary td {
+    width: 50%;
+}
+
+#myPieChart {
+    height: 250px;
+    width: 250px;
+}
+
+.span-container {
+    display: flex;
+    flex-basis: 92%;
+}
+
+.span1 {
+    flex-basis: 25%;
+    text-align: left;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.heading {
+    background-color: $defaultHeadingBgColor;
+    color: $defaultHeadingColor;
+    font-weight: bold;
+}
+
+.subtotal {
+    background-color: $defaultSubTotalBgColor;
+    color: $defaultSubTotalColor;
+    font-weight: bold;
+}
+
+.span2 {
+    flex-basis: 10%;
+    text-align: left;
+    padding: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.inner-div {
+    background-color: white;
+    width: 100%;
+    border-top: 1px solid #e9eaec;
+    border-bottom: 1px solid #e9eaec;
+}
+
+.arrow-button {
+    background-color: white;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    flex-basis: 8%;
+}
+
+.arrow-button-heading {
+    background-color: $defaultHeadingBgColor;
+    color: $defaultHeadingColor;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    flex-basis: 8%;
+}
+
+.arrow-button-btm{
+    background-color: $defaultSubTotalBgColor;
+    color: $defaultSubTotalColor;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    flex-basis: 8%;
+}
+
+table.dataTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    font-size: 12px;
+}
+
+table.dataTable td {
+    padding: 10px;
+    border: 1px solid #e9eaec;
+}
+
+table.dataTable tr.data-heading {
+    background-color: $defaultScenarioTableHeadingBgColor;
+    color: $defaultScenarioTableHeadingColor;
+    font-weight: bold;
+}
+
+table.dataTable td:nth-child(2) {
+    width: 80%;
+}
+
+table.dataTable td:last-child {
+    width: 6%;
+    text-align: center;
+    vertical-align: middle;
+}
+
+table.summary {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+table.summary th,
+td {
+    text-align: left;
+    padding: 8px;
+    border: 1px solid #bbbbbb;
+    width: 10%;
+}
+
+table.summary th {
+    background-color: $defaultHeadingBgColor;
+    color: $defaultHeadingColor
+}
+
+a,
+a:visited {
+    text-decoration: none;
+    color: #2b64ff;
+}
+
+.circle {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.circle-tc {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.circle.red,
+.circle-tc.red {
+    background-color: red;
+}
+
+.circle.green,
+.circle-tc.green {
+    background-color: green;
+}
+
+.circle.orange,
+.circle-tc.orange {
+    background-color: orange;
+}
+
+.circle.grey,
+.circle-tc.grey {
+    background-color: grey;
+}
+
+.circle:hover::after {
+    content: attr(data-label);
+    position: absolute;
+    left: 40px;
+    top: 0;
+    white-space: nowrap;
+}
+
+.chart-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-tooltip {
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+}
+
+.hidden {
+    display: none;
+}
+
+td.top {
+    font-weight: 600;
+}
+
+@media (min-width:1100px) {
+    .row {
+        width: 80%;
+    }
+}
+
+@media (max-width:1100px) {
+    .row {
+        width: 100%;
+    }
+}
+
+@media (max-width:800px) {
+    .hide-in-mobile {
+        display: none;
+    }
+
+    .span1 {
+        flex-basis: 75%;
+    }
+
+    .arrow-button,
+    .arrow-button-heading,
+    .arrow-button-btm{
+    flex-basis: 15%;
+    }
+
+    .span-container {
+        flex-basis: 85%;
+    }
+
+    table.dataTable td:last-child {
+        width: 14%;
+    }
+}

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>$reportTitle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <style>
+        $styleGoesHere
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+<div class="container">
+    <div class="row summary-row">
+        <table class="summary">
+            <tbody>
+            <tr class="reportTitleRow">
+                <th class="top" colspan="3">$reportTitle</th>
+            </tr>
+            <tr class="environmentRow">
+                <td class="top">Environment:</td>
+                <td class="summary-cell"><a href="$enterUrl" target="_blank">$enterUrl</a></td>
+            </tr>
+            <tr class="OsBrowserRow">
+                <td class="top">OS &amp; Browser:</td>
+                <td class="summary-cell">$enterOsBrowserName</td>
+            </tr>
+            <tr class="executedByRow">
+                <td class="top">Executed By:</td>
+                <td class="summary-cell">$executedBy</td>
+            </tr>
+            <tr class="TimeStampRow">
+                <td class="top">Execution Date &amp; Time:</td>
+                <td class="summary-cell">$enterTimeStamp</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="chart-container">
+        <canvas id="myPieChart"></canvas>
+    </div>
+    <div class="row heading">
+        <div class="span-container">
+            <span class="span1">Feature Name</span>
+            <span class="span1 hide-in-mobile">Test Credentials</span>
+            <span class="span2 hide-in-mobile">Pass</span>
+            <span class="span2 hide-in-mobile">Fail</span>
+            <span class="span2 hide-in-mobile">Total</span>
+            <span class="span2">Status</span>
+            <span class="span2 hide-in-mobile">Pass (%)</span>
+        </div>
+        <button type="button" class="arrow-button-heading" onclick="toggleAll()" id="toggle-all">&#x27A4;</button>
+    </div>
+    FeatureDetailsStart<div class="row">
+    <div class="span-container">
+        <span class="span1">$featureName</span>
+        <span class="span1 hide-in-mobile">$username<br />$password</span>
+        <span class="span2 hide-in-mobile">$passCount</span>
+        <span class="span2 hide-in-mobile">$failCount</span>
+        <span class="span2 hide-in-mobile">$totalCount</span>
+        <span class="span2">
+                    <div class="circle $featureStatus"></div>
+                </span>
+        <span class="span2 hide-in-mobile">$featurePassPercent</span>
+    </div>
+    <button type="button" class="arrow-button" onclick="toggleInnerDiv($featureNo)"
+            id="arrow-button-$featureNo">&#x27A4;</button>
+    <div class="inner-div" id="inner-div-$featureNo" style="display: none;">
+        <table class="dataTable">
+            <tr class="data-heading">
+                <td>Id</td>
+                <td>Name</td>
+                <td>Status</td>
+            </tr>
+            TcDetailsStart<tr>
+            <td>$tcKey</td>
+            <td>$tcName</td>
+            <td>
+                <div class="circle-tc $tcStatus"></div>
+            </td>
+        </tr>TcDetailsEnd
+        </table>
+    </div>
+</div>FeatureDetailsEnd
+    <div class="row subtotal">
+        <div class="span-container">
+            <span class="span1">Overall: </span>
+            <span class="span1 hide-in-mobile"></span>
+            SubTotalDetailsStart<span class="span2 hide-in-mobile">$overallPassCount</span>
+            <span class="span2 hide-in-mobile">$overallFailCount</span>
+            <span class="span2 hide-in-mobile">$overallCount</span>
+            <span class="span2">
+                    <div class="circle $overallStatus"></div>
+                </span>
+            <span class="span2 hide-in-mobile">$overallPassPercent</span>SubTotalDetailsEnd
+        </div>
+        <button type="button" class="arrow-button-btm" onclick="toggleAll()" id="toggle-all-btm">&#x27A4;</button>
+    </div>
+</div>
+<script>
+    $scriptGoesHere
+</script>
+</body>
+
+</html>

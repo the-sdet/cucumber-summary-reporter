@@ -20,12 +20,16 @@ This library generates a summary report for Cucumber test results, which can be 
 ### Cucumber Summary Report Extended
 <img src="src/main/java/img/Summary-Report-Extended.png" alt="Cucumber Summary Report Extended"/>
 
+### Cucumber Summary Report — Mobile View
+<img src="src/main/java/img/Summary-Report-Mobile-View.png" alt="Cucumber Summary Report - Mobile View"/>
+
 ## Features
 * Generates a quick summary of Cucumber test results.
 * Doughnut Chart gives a visual representation of an Overall result
 * Provides statistics on test runs, including total, passed, failed scenarios.
 * Supports output formats suitable for presentations or email reports.
 * Easy integration as a Cucumber plugin/adapter.
+* Optimised for Desktop, Tablet and Mobile View
 
 ## Usage
 
@@ -38,7 +42,7 @@ To use Cucumber Summary Reporter, simply add the following dependency to your Ma
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 ```
 
@@ -106,8 +110,14 @@ show.execution.timestamp=true
 time.stamp.format=EEEE, dd-MMM-yyyy HH:mm:ss z
 time.zone=IST
 
-heading.background.color=#66CCEE
-subtotal.background.color=#d7d8d8`
+heading.background.color=#23436a
+heading.color=#ffffff
+
+subtotal.background.color=#03455b
+subtotal.color=#ffffff
+
+scenario.table.heading.background.color=#efefef
+scenario.table.heading.color=#000000
 ```
 
 ### Default Configs
@@ -115,8 +125,12 @@ subtotal.background.color=#d7d8d8`
 * Report Location will be - `testReports/CucumberTestSummary.html`
 * Timestamp format will be - `EEEE, dd-MMM-yyyy HH:mm:ss z`
 * Timezone for the timestamp will be `IST`
-* Heading Background color will be - `#66CCEE`
-* And Subtotal Background Color will be - `#d7d8d8`
+* Heading Background color will be - `#23436a`
+* And Subtotal Background Color will be - `#ffffff`
+* Heading Background color will be - `#23436a`
+* And Subtotal Background Color will be - `#ffffff`
+* Scenario table Background color will be - `#efefef`
+* And Subtotal Background Color will be - `#090909`
 
 
 ## Authors
