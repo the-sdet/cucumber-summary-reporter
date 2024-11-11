@@ -8,20 +8,20 @@
 This library generates a summary report for Cucumber test results, which can be integrated as a plugin/adapter for Cucumber. The report provides a concise overview of test execution, making it easier to analyze test stats or distribute a simplified summary, for example, via email.
 
 ### Cucumber Summary Report — All Pass
-<img src="src/main/java/img/Summary-Report-Pass.png" alt="Cucumber Summary Report - All Pass"/>
+<img src="src/main/resources/img/Summary-Report-Pass.png" alt="Cucumber Summary Report - All Pass"/>
 
 ### Cucumber Summary Report — Mixed Result
-<img src="src/main/java/img/Summary-Report-Pass-Fail.png" alt="Cucumber Summary Report - Pass & Fail"/>
+<img src="src/main/resources/img/Summary-Report-Pass-Fail.png" alt="Cucumber Summary Report - Pass & Fail"/>
 
 ### Cucumber Summary Report — Hover On Doughnut to see details
-<img src="src/main/java/img/Summary-Report-Hover-Effect.png" alt="Cucumber Summary Report Hover Over Doughnut Chart"/>
+<img src="src/main/resources/img/Summary-Report-Hover-Effect.png" alt="Cucumber Summary Report Hover Over Doughnut Chart"/>
 
 
 ### Cucumber Summary Report Extended
-<img src="src/main/java/img/Summary-Report-Extended.png" alt="Cucumber Summary Report Extended"/>
+<img src="src/main/resources/img/Summary-Report-Extended.png" alt="Cucumber Summary Report Extended"/>
 
 ### Cucumber Summary Report — Mobile View
-<img src="src/main/java/img/Summary-Report-Mobile-View.png" alt="Cucumber Summary Report - Mobile View"/>
+<img src="src/main/resources/img/Summary-Report-Mobile-View.png" alt="Cucumber Summary Report - Mobile View"/>
 
 ## Features
 * Generates a quick summary of Cucumber test results.
@@ -42,7 +42,7 @@ To use Cucumber Summary Reporter, simply add the following dependency to your Ma
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.2</version>
+    <version>1.0.3</version>
 </dependency>
 ```
 
@@ -110,6 +110,9 @@ show.execution.timestamp=true
 time.stamp.format=EEEE, dd-MMM-yyyy HH:mm:ss z
 time.zone=IST
 
+#The Default desktop view is set to 80% width. You can change it with the below property
+desktop.view.width=100%
+
 heading.background.color=#23436a
 heading.color=#ffffff
 
@@ -132,6 +135,8 @@ scenario.table.heading.color=#000000
 * Scenario table Background color will be - `#efefef`
 * And Subtotal Background Color will be - `#090909`
 
+## Example of Usage
+An Example of Usage of the Library can be found here: https://github.com/pabitra-qa/UsingCucumberSummaryReporter
 
 ## Authors
 
