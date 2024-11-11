@@ -68,6 +68,8 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   private static final String defaultTimeStampFormat = "EEEE, dd-MMM-yyyy HH:mm:ss z";
   private static final String defaultTimeZone = "IST";
 
+  private static final String defaultDesktopViewWidth = "80%";
+
   private static final String defaultHeadingBgColor = "#23436a";
   private static final String defaultHeadingColor = "#ffffff";
 
@@ -288,6 +290,8 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       String scenarioTableHeadingBg = getPropertyValue("scenario.table.heading.background.color");
       String scenarioTableHeadingColor = getPropertyValue("scenario.table.heading.color");
 
+      String desktopViewWidth = getPropertyValue("desktop.view.width");
+
       if (cssStyles == null || jsScripts == null || reportTemplate == null) {
         log.error("Template Files NOT found.. Please raise a bug to the developer.");
         return null;
@@ -308,7 +312,10 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
               scenarioTableHeadingColor == null
                   ? defaultScenarioTableHeadingColor
                   : scenarioTableHeadingColor)
-          .replace("$reportTitle", reportTitle);
+          .replace("$reportTitle", reportTitle)
+          .replace("$defaultDesktopViewWidth", desktopViewWidth == null
+              ? defaultDesktopViewWidth
+              : desktopViewWidth.trim().endsWith("%") ? desktopViewWidth : desktopViewWidth + "%");
 
       if (showEnvUrl && envUrl != null) {
         report = report.replace("$enterUrl", envUrl);
@@ -566,7 +573,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
     String timeFormat = getPropertyValue("time.stamp.format");
     String timeZone = getPropertyValue("time.zone");
     SimpleDateFormat sdf = new SimpleDateFormat(timeFormat == null ? defaultTimeStampFormat : timeFormat);
-    sdf.setTimeZone(TimeZone.getTimeZone(timeZone == null ? defaultTimeStampFormat : timeZone));
+    sdf.setTimeZone(TimeZone.getTimeZone(timeZone == null ? defaultTimeZone : timeZone));
     return sdf.format(new Date());
   }
 }

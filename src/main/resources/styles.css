@@ -45,6 +45,8 @@ table.summary td {
     padding: 10px;
     display: flex;
     align-items: center;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .heading {
@@ -229,7 +231,7 @@ td.top {
 
 @media (min-width:1100px) {
     .row {
-        width: 80%;
+        width: $defaultDesktopViewWidth;
     }
 }
 
