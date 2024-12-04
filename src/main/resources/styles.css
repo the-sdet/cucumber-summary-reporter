@@ -40,7 +40,7 @@ table.summary td {
 }
 
 .span1 {
-    flex-basis: 25%;
+    flex-basis: 45%;
     text-align: left;
     padding: 10px;
     display: flex;
