@@ -15,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Custom Event publishers for Cucumber Listener
@@ -48,17 +47,18 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   /**
    * Result Map to have Features, its Scenario and their results
    */
-  protected static final Map<String, Map<String, Status>> featureWiseResultMap = new ConcurrentHashMap<>();
+  protected static final Map<String, Map<String, Status>> featureWiseResultMap = Collections
+      .synchronizedMap(new LinkedHashMap<>());
 
   /**
    * Result Map to have Feature file metadata
    */
-  private static final Map<String, FeatureInfo> featureFiles = new ConcurrentHashMap<>();
+  private static final Map<String, FeatureInfo> featureFiles = Collections.synchronizedMap(new LinkedHashMap<>());
 
   /**
    * To hold Runtime Test Users
    */
-  public static final Map<String, List<String>> testUsers = new ConcurrentHashMap<>();
+  public static final Map<String, List<String>> testUsers = Collections.synchronizedMap(new LinkedHashMap<>());
 
   // Default Values
   private static final String defaultReportPath = "testReports/CucumberTestSummary.html";
@@ -149,24 +149,28 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
   protected void scenarioFinishedHandler(TestCaseFinished event) {
-    String scenario = event.getTestCase().getName();
-    log.debug("Scenario Completed: {}", scenario);
-    String uri = event.getTestCase().getUri().toString();
+    String scenarioName = event.getTestCase().getName();
+    log.debug("Scenario Completed: {}", scenarioName);
 
-    if (!featureWiseResultMap.containsKey(uri)) {
-      Map<String, Status> scenarios = new ConcurrentHashMap<>();
-      scenarios.put(scenario, event.getResult().getStatus());
-      featureWiseResultMap.put(uri, scenarios);
+    // Extracting the scenario's URI
+    String uri = event.getTestCase().getUri().toString();
+    String keyword = event.getTestCase().getKeyword();
+    String uniqueKey;
+    if (keyword.equals("Scenario Outline")) {
+      int line = event.getTestCase().getLocation().getLine();
+      uniqueKey = scenarioName + " #" + line;
     } else {
-      featureWiseResultMap.get(uri).put(scenario, event.getResult().getStatus());
+      uniqueKey = scenarioName;
     }
 
-    // Steps for the scenario - Not Required for the summary Report
-    /*
-     * List<TestStep> steps = event.getTestCase().getTestSteps(); for (TestStep step
-     * : steps) { if (step instanceof PickleStepTestStep) { String stepText =
-     * (((PickleStepTestStep) step).getStep().getText()); log.info(stepText); } }
-     */
+    // Update the report map
+    if (!featureWiseResultMap.containsKey(uri)) {
+      Map<String, Status> scenarios = Collections.synchronizedMap(new LinkedHashMap<>());
+      scenarios.put(uniqueKey, event.getResult().getStatus());
+      featureWiseResultMap.put(uri, scenarios);
+    } else {
+      featureWiseResultMap.get(uri).put(uniqueKey, event.getResult().getStatus());
+    }
   }
 
   /**
