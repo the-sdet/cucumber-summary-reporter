@@ -42,7 +42,7 @@ To use Cucumber Summary Reporter, simply add the following dependency to your Ma
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.4</version>
+    <version>1.0.5</version>
 </dependency>
 ```
 
