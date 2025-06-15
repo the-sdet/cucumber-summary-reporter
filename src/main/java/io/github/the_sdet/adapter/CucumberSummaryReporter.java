@@ -15,569 +15,587 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Custom Event publishers for Cucumber Listener
- *
- * @author Pabitra Swain (contact.the.sdet@gmail.com)
+ * Custom Cucumber plugin that generates a styled summary report in HTML.
+ * <p>
+ * Runtime override precedence (highest → lowest):
+ * <ol>
+ * <li>Plugin args string (e.g.
+ * {@code CucumberSummaryReporter:env.url=https://stg})</li>
+ * <li>JVM system property {@code -Dcucumber.summary.env.url=...}</li>
+ * <li>Environment variable {@code CUCUMBER_SUMMARY_ENV_URL=...}</li>
+ * <li>{@code cucumber-summary.properties} on class‑path</li>
+ * <li>Hard‑coded defaults in this class</li>
+ * </ol>
+ * <p>
+ * **Important: ** even if a system property is set *after* the reporter is
+ * created (for example in a JUnit {@code @BeforeAll} hook), the getter methods
+ * below re‑check {@link System#getProperty(String)} at each call, so the late
+ * override still wins.
+ * <p>
+ * Java 11 compatible – no records, no switch expressions.
  */
-@SuppressWarnings({"unused", "SameParameterValue"})
 public class CucumberSummaryReporter implements ConcurrentEventListener {
 
-  /**
-   * Logger Object
+  /*
+   * --------------------------------------------------- ⚙ Configuration
+   * ---------------------------------------------------
    */
-  protected static final Logger log = LogManager.getLogger(CucumberSummaryReporter.class);
 
-  static class FeatureInfo {
-    String uri;
-    String packageName;
-    String featureFileName;
-    String featureNameDefinedInFeatureFile;
+  /**
+   * Merged, file‑based configuration loaded once in the constructor.
+   */
+  private final Properties baseCfg;
 
-    private FeatureInfo(String uri, String packageName, String featureFileName,
-        String featureNameDefinedInFeatureFile) {
-      this.uri = uri;
-      this.packageName = packageName;
-      this.featureFileName = featureFileName;
-      this.featureNameDefinedInFeatureFile = featureNameDefinedInFeatureFile;
-    }
+  /**
+   * Prefix prepended to every key when looking for an override in
+   * {@link System#getProperties()}.
+   */
+  private static final String SYS_PROP_PREFIX = "cucumber.summary.";
+
+  /**
+   * Resolve a configuration value.<br>
+   * Order: ① System property → ② value from
+   * {@code cucumber-summary.properties}.<br>
+   * Returns {@code null} if the key isn’t found in either source.
+   *
+   * @param key
+   *            the suffix of the config key (without {@link #SYS_PROP_PREFIX})
+   * @return resolved value or {@code null}
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  private String cfg(String key) {
+    String live = System.getProperty(SYS_PROP_PREFIX + key);
+    return live != null ? live : baseCfg.getProperty(key);
   }
 
   /**
-   * Result Map to have Features, its Scenario and their results
+   * Resolve a configuration value with a default.
+   *
+   * @param key
+   *            configuration key suffix (without prefix)
+   * @param def
+   *            fallback default if the key is missing everywhere
+   * @return resolved value (never {@code null})
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  protected static final Map<String, Map<String, Status>> featureWiseResultMap = Collections
-      .synchronizedMap(new LinkedHashMap<>());
+  private String cfg(String key, String def) {
+    String val = cfg(key);
+    return val != null ? val : def;
+  }
+
+  /*
+   * --------------------------------------------------- 📓 Logger
+   * ---------------------------------------------------
+   */
 
   /**
-   * Result Map to have Feature file metadata
+   * Dedicated logger; set {@code additivity=false} in log4j config to keep output
+   * isolated.
    */
-  private static final Map<String, FeatureInfo> featureFiles = Collections.synchronizedMap(new LinkedHashMap<>());
+  private static final Logger log = LogManager.getLogger(CucumberSummaryReporter.class);
+
+  /*
+   * --------------------------------------------------- 🗂 Runtime state
+   * containers ---------------------------------------------------
+   */
 
   /**
-   * To hold Runtime Test Users
+   * Feature → (Scenario → Status) mapping collected during execution.
    */
-  public static final Map<String, List<String>> testUsers = Collections.synchronizedMap(new LinkedHashMap<>());
+  private final Map<String, Map<String, Status>> featureResults = new ConcurrentHashMap<>();
 
-  // Default Values
+  /**
+   * Feature URI → static metadata (package, display name, etc.).
+   */
+  private final Map<String, FeatureInfo> featureFiles = new ConcurrentHashMap<>();
+
+  /**
+   * Mutable map to inject per‑feature test credentials at runtime.
+   */
+  private static final Map<String, List<String>> testUsers = new LinkedHashMap<>();
+
+  /**
+   * Register a pair of test credentials for a feature at runtime.
+   *
+   * @param featureUri
+   *            feature URI as provided by Cucumber’s {@code Scenario#getUri()}
+   * @param username
+   *            username to display in the HTML report
+   * @param password
+   *            password to display in the HTML report
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  @SuppressWarnings("unused")
+  public static void registerTestUser(String featureUri, String username, String password) {
+    testUsers.put(featureUri, Arrays.asList(username, password));
+  }
+
+  /*
+   * --------------------------------------------------- 🔧 Defaults
+   * ---------------------------------------------------
+   */
+
   private static final String defaultReportPath = "testReports/CucumberTestSummary.html";
   private static final String defaultReportTitle = "Cucumber Test Summary";
   private static final String defaultUserName = "---";
   private static final String defaultPassword = "---";
   private static final String defaultTimeStampFormat = "EEEE, dd-MMM-yyyy HH:mm:ss z";
   private static final String defaultTimeZone = "IST";
-
   private static final String defaultDesktopViewWidth = "80%";
-
   private static final String defaultHeadingBgColor = "#23436a";
   private static final String defaultHeadingColor = "#ffffff";
-
   private static final String defaultSubTotalBgColor = "#cbcbcb";
   private static final String defaultSubTotalColor = "#090909";
-
   private static final String defaultScenarioTableHeadingBgColor = "#efefef";
   private static final String defaultScenarioTableHeadingColor = "#090909";
 
-  private boolean useDefault = false;
-  private boolean propertyLoaded = false;
-  Properties prop;
+  /*
+   * --------------------------------------------------- 🚚 Constructors
+   * ---------------------------------------------------
+   */
 
   /**
-   * Default Constructor
+   * Default constructor used when no plugin arguments are supplied via
+   * <code>--plugin io...CucumberSummaryReporter</code>. Internal delegates to the
+   * argument‑based constructor with an empty string.
    *
-   * @param arg
-   *            param
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  public CucumberSummaryReporter(String arg) {
+  public CucumberSummaryReporter() {
+    this("");
   }
 
   /**
-   * Event publishers
+   * Main constructor invoked by Cucumber when the reporter is declared with
+   * inline plugin arguments (e.g.
+   * <code>...:env.url=<a href="https://stg">...</a></code>).
+   * <p>
+   * The constructor merges configuration from four sources in descending
+   * precedence: plugin args, JVM system properties, environment variables and
+   * <code>cucumber-summary.properties</code> on the class‑path.
    *
-   * @param publisher
-   *            Type of publisher
+   * @param pluginArgs
+   *            raw argument string supplied after the colon in the plugin
+   *            declaration
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  public CucumberSummaryReporter(String pluginArgs) {
+    this.baseCfg = ConfigLoader.load(pluginArgs);
+  }
+
+  /*
+   * --------------------------------------------------- 📢 Event wiring
+   * ---------------------------------------------------
+   */
+
+  /**
+   * Registers all internal event handlers with Cucumber’s {@link EventPublisher}
+   * so the reporter can listen to parse, execution and run‑completion events.
+   *
+   * @param p
+   *            singleton {@link EventPublisher} instance provided by the Cucumber
+   *            runtime
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
   @Override
-  public void setEventPublisher(EventPublisher publisher) {
-    // Register Handles for Cucumber Listener
-    publisher.registerHandlerFor(TestCaseStarted.class, this::scenarioStartedHandler);
-    publisher.registerHandlerFor(TestCaseFinished.class, this::scenarioFinishedHandler);
-    publisher.registerHandlerFor(TestRunFinished.class, this::runFinishedHandler);
-    publisher.registerHandlerFor(TestSourceParsed.class, this::sourceParseStartedHandler);
-    publisher.registerHandlerFor(TestStepStarted.class, this::stepStartedHandler);
-    publisher.registerHandlerFor(TestStepFinished.class, this::stepFinishedHandler);
+  public void setEventPublisher(EventPublisher p) {
+    p.registerHandlerFor(TestSourceParsed.class, this::onSourceParsed);
+    p.registerHandlerFor(TestCaseStarted.class, this::onCaseStarted);
+    p.registerHandlerFor(TestCaseFinished.class, this::onCaseFinished);
+    p.registerHandlerFor(TestRunFinished.class, this::onRunFinished);
+  }
+
+  /*
+   * --------------------------------------------------- 📌 Events
+   * ---------------------------------------------------
+   */
+
+  /**
+   * Handler for the {@link TestSourceParsed} event. Caches static metadata such
+   * as package name and feature display name for later use in the HTML report.
+   *
+   * @param evt
+   *            event dispatched when a Gherkin document is parsed
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  private void onSourceParsed(TestSourceParsed evt) {
+    String uri = evt.getUri().toString();
+    String[] parts = uri.split("/");
+    String fileName = parts[parts.length - 1].split("\\.")[0];
+    String folder = parts[parts.length - 2];
+    String pkg = folder.contains(":") ? cleanPkg(folder.split(":")[1]) : cleanPkg(folder);
+    String featName = evt.getNodes().stream().map(Node::getName).filter(Optional::isPresent).map(Optional::get)
+        .findFirst().orElse("Feature name missing");
+    featureFiles.put(uri, new FeatureInfo(uri, pkg, fileName, featName));
   }
 
   /**
-   * Executed when Scenario starts
+   * Utility to strip generic <code>feature</code>/<code>features</code> folder
+   * names from a path fragment so they don’t appear as Java package names in the
+   * report.
    *
-   * @param event
-   *            ScenarioFinish event object
+   * @param f
+   *            raw folder name
+   * @return cleaned package name or empty string
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  protected void scenarioStartedHandler(TestCaseStarted event) {
-    log.debug("Scenario Execution Started: {}", event.getTestCase().getName());
-  }
-
-  private void sourceParseStartedHandler(TestSourceParsed event) {
-    String uri = event.getUri().toString();
-    Collection<Node> nodes = event.getNodes();
-    String packageName, featureName;
-    String[] test = uri.split("/");
-    int size = test.length;
-    featureName = test[size - 1].split("\\.")[0];
-    if (test[size - 2].contains(":"))
-      packageName = getPackageName(test[size - 2].split(":")[1]);
-    else
-      packageName = getPackageName(test[size - 2]);
-
-    String featureNameDefinedInFeatureFile = "";
-    for (Node node : nodes) {
-      featureNameDefinedInFeatureFile = node.getName().orElse("Feature Name is missing");
-    }
-    featureFiles.put(uri, new FeatureInfo(uri, packageName, featureName, featureNameDefinedInFeatureFile));
+  private String cleanPkg(String f) {
+    return ("feature".equalsIgnoreCase(f) || "features".equalsIgnoreCase(f)) ? "" : f;
   }
 
   /**
-   * Executed when Scenario Step finishes
+   * Fires when a scenario begins execution. Currently only logs a DEBUG message;
+   * retained as a hook point for potential future extensions.
    *
-   * @param event
-   *            ScenarioFinish event object
+   * @param e
+   *            {@link TestCaseStarted} event
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  protected void scenarioFinishedHandler(TestCaseFinished event) {
-    String scenarioName = event.getTestCase().getName();
-    log.debug("Scenario Completed: {}", scenarioName);
-
-    // Extracting the scenario's URI
-    String uri = event.getTestCase().getUri().toString();
-    String keyword = event.getTestCase().getKeyword();
-    String uniqueKey;
-    if (keyword.equals("Scenario Outline")) {
-      int line = event.getTestCase().getLocation().getLine();
-      uniqueKey = scenarioName + " #" + line;
-    } else {
-      uniqueKey = scenarioName;
-    }
-
-    // Update the report map
-    if (!featureWiseResultMap.containsKey(uri)) {
-      Map<String, Status> scenarios = Collections.synchronizedMap(new LinkedHashMap<>());
-      scenarios.put(uniqueKey, event.getResult().getStatus());
-      featureWiseResultMap.put(uri, scenarios);
-    } else {
-      featureWiseResultMap.get(uri).put(uniqueKey, event.getResult().getStatus());
-    }
+  private void onCaseStarted(TestCaseStarted e) {
+    log.debug("Started: {}", e.getTestCase().getName());
   }
 
   /**
-   * Executed when Test Run Finished
+   * Captures scenario pass/fail status at completion and stores it in the
+   * in‑memory result map.
    *
-   * @param event
-   *            TestRunFinish event object
+   * @param e
+   *            {@link TestCaseFinished} event containing result status
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  private void runFinishedHandler(TestRunFinished event) {
-    parseResultToReport(featureWiseResultMap);
+  private void onCaseFinished(TestCaseFinished e) {
+    String uri = e.getTestCase().getUri().toString();
+    String name = e.getTestCase().getName();
+    String key = "Scenario Outline".equals(e.getTestCase().getKeyword())
+        ? name + " #" + e.getTestCase().getLocation().getLine()
+        : name;
+    featureResults.computeIfAbsent(uri, k -> new LinkedHashMap<>()).put(key, e.getResult().getStatus());
   }
 
   /**
-   * Executed when Scenario Step starts
+   * Generates the summary HTML file once Cucumber announces that all scenarios
+   * have finished.
    *
-   * @param event
-   *            StepStart event object
+   * @param e
+   *            {@link TestRunFinished} terminal event
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  protected void stepStartedHandler(TestStepStarted event) {
-    if (event.getTestStep() instanceof PickleStepTestStep) {
-      PickleStepTestStep testStep = (PickleStepTestStep) event.getTestStep();
-      if (!testStep.getStep().getKeyword().startsWith("Given")) {
-        log.debug("Step Started: {}", testStep.getStep().getText());
-      }
-    }
+  private void onRunFinished(TestRunFinished e) {
+    generateReport();
+  }
+
+  /*
+   * --------------------------------------------------- 🖼 Report skeleton
+   * ---------------------------------------------------
+   */
+
+  /**
+   * Generates a timestamp string based on configured format and time zone.
+   *
+   * @return formatted timestamp string
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  private String timestamp() {
+    SimpleDateFormat sdf = new SimpleDateFormat(cfg("time.stamp.format", defaultTimeStampFormat));
+    sdf.setTimeZone(TimeZone.getTimeZone(cfg("time.zone", defaultTimeZone)));
+    return sdf.format(new Date());
   }
 
   /**
-   * Executed when Scenario Step finishes
+   * Reads the content of a resource file as a string.
    *
-   * @param event
-   *            StepFinish event object
+   * @param name
+   *            resource file name
+   * @return content of the resource as UTF-8 string, or null if not found
+   * @throws IOException
+   *             if reading the resource fails
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  protected void stepFinishedHandler(TestStepFinished event) {
-    if (event.getTestStep() instanceof PickleStepTestStep) {
-      PickleStepTestStep testStep = (PickleStepTestStep) event.getTestStep();
-      if (!testStep.getStep().getKeyword().startsWith("Given")) {
-        log.debug("Step Completed: {}", testStep.getStep().getText());
-      }
-    }
-  }
-
-  /**
-   * Checks if there is no extra folder structure under features
-   *
-   * @param potentialPackageName
-   *            String Parent Folder of the feature file.
-   * @return The folder name if there is any available
-   * @author Pabitra Swain (contact.the.sdet@gmail.com)
-   */
-  private static String getPackageName(String potentialPackageName) {
-    if (potentialPackageName.equalsIgnoreCase("feature") || potentialPackageName.equalsIgnoreCase("features"))
-      return "";
-    else
-      return potentialPackageName;
-  }
-
-  /**
-   * This method reads values from a property file
-   *
-   * @param propertyName
-   *            Name of the property, which value needs to be retrieved
-   * @return String value of the property
-   * @author Pabitra Swain (contact.the.sdet@gmail.com)
-   */
-  private String getPropertyValue(String propertyName) {
-    if (!propertyLoaded)
-      prop = loadPropertyFile();
-    return prop.getProperty(propertyName);
-  }
-
-  /**
-   * This method loads the 'cucumber-summary.properties' file
-   *
-   * @return Returns the loaded properties
-   * @author Pabitra Swain (contact.the.sdet@gmail.com)
-   */
-  private Properties loadPropertyFile() {
-    Properties prop = new Properties();
-    try {
-      prop.load(
-          CucumberSummaryReporter.class.getClassLoader().getResourceAsStream("cucumber-summary.properties"));
-    } catch (Exception e) {
-      log.error("'cucumber-summary.properties' NOT found in test/resources. Using Default Config...");
-      useDefault = true;
-    }
-    propertyLoaded = true;
-    return prop;
-  }
-
-  /**
-   * This method constructs the base or non-test content of the final report
-   *
-   * @return String content
-   * @author Pabitra Swain (contact.the.sdet@gmail.com)
-   */
-  private String constructReport() {
-    try {
-      // Load the base HTML template and static assets
-      String reportTemplate = loadFileContent("ReportTemplate.html"); // Load HTML template
-      String cssStyles = loadFileContent("styles.css"); // Load CSS
-      String jsScripts = loadFileContent("scripts.js"); // Load JavaScript
-
-      String reportTitleProvided = getPropertyValue("report.title");
-      String reportTitle = reportTitleProvided == null ? defaultReportTitle : reportTitleProvided;
-      boolean showEnvUrl = Boolean.parseBoolean(getPropertyValue("show.env"));
-      String envUrl = getPropertyValue("env.url");
-      boolean showOsBrowserInfo = Boolean.parseBoolean(getPropertyValue("show.os.browser"));
-      String osBrowserInfo = getPropertyValue("os.browser");
-      boolean showExecutedBy = Boolean.parseBoolean(getPropertyValue("show.executed.by"));
-      String executedBy = getPropertyValue("executed.by");
-      boolean showTimeStamp = Boolean.parseBoolean(getPropertyValue("show.execution.timestamp")) || useDefault;
-
-      String headingBgColor = getPropertyValue("heading.background.color");
-      String headingColor = getPropertyValue("heading.color");
-      String subTotalColor = getPropertyValue("subtotal.color");
-      String subTotalBgColor = getPropertyValue("subtotal.background.color");
-      String scenarioTableHeadingBg = getPropertyValue("scenario.table.heading.background.color");
-      String scenarioTableHeadingColor = getPropertyValue("scenario.table.heading.color");
-
-      String desktopViewWidth = getPropertyValue("desktop.view.width");
-
-      if (cssStyles == null || jsScripts == null || reportTemplate == null) {
-        log.error("Template Files NOT found.. Please raise a bug to the developer.");
+  private String readRes(String name) throws IOException {
+    try (InputStream in = getClass().getClassLoader().getResourceAsStream(name)) {
+      if (in == null) {
+        log.error("Template {} missing", name);
         return null;
       }
+      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+    }
+  }
 
-      String report = reportTemplate.replace("$styleGoesHere", cssStyles).replace("$scriptGoesHere", jsScripts)
-          .replace("$reportTitle", reportTitle)
-          .replace("$defaultHeadingBgColor", headingBgColor == null ? defaultHeadingBgColor : headingBgColor)
-          .replace("$defaultHeadingColor", headingColor == null ? defaultHeadingColor : headingColor)
-          .replace("$defaultSubTotalBgColor",
-              subTotalBgColor == null ? defaultSubTotalBgColor : subTotalBgColor)
-          .replace("$defaultSubTotalColor", subTotalColor == null ? defaultSubTotalColor : subTotalColor)
+  /**
+   * Builds the complete HTML skeleton for the summary report. Populates
+   * placeholders in the HTML template with dynamic content, styles, and scripts.
+   *
+   * @return final populated HTML string, or null if any required template file is
+   *         missing
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  private String skeleton() {
+    try {
+      String html = readRes("ReportTemplate.html"), css = readRes("styles.css"), js = readRes("scripts.js");
+      if (html == null || css == null || js == null)
+        return null;
+      String r = html.replace("$styleGoesHere", css).replace("$scriptGoesHere", js)
+          .replace("$reportTitle", cfg("report.title", defaultReportTitle))
+          .replace("$defaultHeadingBgColor", cfg("heading.background.color", defaultHeadingBgColor))
+          .replace("$defaultHeadingColor", cfg("heading.color", defaultHeadingColor))
+          .replace("$defaultSubTotalBgColor", cfg("subtotal.background.color", defaultSubTotalBgColor))
+          .replace("$defaultSubTotalColor", cfg("subtotal.color", defaultSubTotalColor))
           .replace("$defaultScenarioTableHeadingBgColor",
-              scenarioTableHeadingBg == null
-                  ? defaultScenarioTableHeadingBgColor
-                  : scenarioTableHeadingBg)
+              cfg("scenario.table.heading.background.color", defaultScenarioTableHeadingBgColor))
           .replace("$defaultScenarioTableHeadingColor",
-              scenarioTableHeadingColor == null
-                  ? defaultScenarioTableHeadingColor
-                  : scenarioTableHeadingColor)
-          .replace("$reportTitle", reportTitle)
-          .replace("$defaultDesktopViewWidth", desktopViewWidth == null
-              ? defaultDesktopViewWidth
-              : desktopViewWidth.trim().endsWith("%") ? desktopViewWidth : desktopViewWidth + "%");
+              cfg("scenario.table.heading.color", defaultScenarioTableHeadingColor))
+          .replace("$defaultDesktopViewWidth", cfg("desktop.view.width", defaultDesktopViewWidth));
 
-      if (showEnvUrl && envUrl != null) {
-        report = report.replace("$enterUrl", envUrl);
+      if (Boolean.parseBoolean(cfg("show.env", "false")) && cfg("env.url") != null) {
+        r = r.replace("$enterUrl", cfg("env.url"));
       } else {
-        report = report.replace("$enterUrl", "");
-        report = report.replace("environmentRow", "environmentRow hidden");
+        r = r.replace("environmentRow", "environmentRow hidden");
       }
-
-      if (showOsBrowserInfo && osBrowserInfo != null) {
-        report = report.replace("$enterOsBrowserName", osBrowserInfo);
+      if (Boolean.parseBoolean(cfg("show.os.browser", "false")) && cfg("os.browser") != null) {
+        r = r.replace("$enterOsBrowserName", cfg("os.browser"));
       } else {
-        report = report.replace("$enterOsBrowserName", "");
-        report = report.replace("OsBrowserRow", "OsBrowserRow hidden");
+        r = r.replace("OsBrowserRow", "OsBrowserRow hidden");
       }
-
-      if (showExecutedBy && executedBy != null) {
-        report = report.replace("$executedBy", executedBy);
+      if (Boolean.parseBoolean(cfg("show.executed.by", "false")) && cfg("executed.by") != null) {
+        r = r.replace("$executedBy", cfg("executed.by"));
       } else {
-        report = report.replace("$executedBy", "");
-        report = report.replace("executedByRow", "executedByRow hidden");
+        r = r.replace("executedByRow", "executedByRow hidden");
       }
-      if (showTimeStamp) {
-        report = report.replace("$enterTimeStamp", getCurrentTimestamp());
+      if (Boolean.parseBoolean(cfg("show.execution.timestamp", "true"))) {
+        r = r.replace("$enterTimeStamp", timestamp());
       } else {
-        report = report.replace("$enterTimeStamp", "");
-        report = report.replace("TimeStampRow", "TimeStampRow hidden");
+        r = r.replace("TimeStampRow", "TimeStampRow hidden");
       }
-      return report;
-    } catch (Exception e) {
-      log.error("Template File NOT found.. Please raise a bug to the developer.");
+      return r;
+    } catch (IOException ex) {
+      log.error("Skeleton build fail", ex);
       return null;
     }
   }
 
+  /*
+   * --------------------------------------------------- 📊 Report generation
+   * ---------------------------------------------------
+   */
+
   /**
-   * This method reads the template file content
+   * Generates the HTML report
    *
-   * @param fileName
-   *            Name of the template file
-   * @return String content of the file
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  private String loadFileContent(String fileName) throws IOException {
-    try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream(fileName)) {
-      if (inputStream == null) {
-        log.error("Template File {} NOT found.. Please raise a bug to the developer.", fileName);
-        return null;
-      }
+  private void generateReport() {
+    if (featureResults.isEmpty()) {
+      log.info("No results – skip report");
+      return;
+    }
+    String rpt = skeleton();
+    if (rpt == null)
+      return;
 
-      // Read the InputStream into a String
-      try (Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8)) {
-        StringBuilder content = new StringBuilder();
-        while (scanner.hasNextLine()) {
-          content.append(scanner.nextLine()).append("\n");
-        }
-        return content.toString(); // Return file content as String
+    String featTpl = StringUtils.substringBetween(rpt, "FeatureDetailsStart", "FeatureDetailsEnd");
+    String tcTpl = StringUtils.substringBetween(rpt, "TcDetailsStart", "TcDetailsEnd");
+    String subTpl = StringUtils.substringBetween(rpt, "SubTotalDetailsStart", "SubTotalDetailsEnd");
+    featTpl = featTpl.replace("TcDetailsStart" + tcTpl + "TcDetailsEnd", "$insertTc");
+    rpt = rpt.replace("TcDetailsStart" + tcTpl + "TcDetailsEnd", "$insertTc")
+        .replace("SubTotalDetailsStart" + subTpl + "SubTotalDetailsEnd", "$insertSub")
+        .replace("FeatureDetailsStart" + featTpl + "FeatureDetailsEnd", "$insertFeat");
+
+    StringBuilder featBuf = new StringBuilder();
+    DecimalFormat df = new DecimalFormat("0.00");
+    int oPass = 0, oFail = 0, fNo = 0;
+
+    for (Map.Entry<String, Map<String, Status>> feat : featureResults.entrySet()) {
+      fNo++;
+      FeatureInfo info = featureFiles.get(feat.getKey());
+      String name = Boolean.parseBoolean(cfg("use.feature.name.from.feature.file", "false"))
+          ? info.featureNameDefinedInFeatureFile
+          : info.featureFileName;
+      if (Boolean.parseBoolean(cfg("use.package.name", "true")) && !info.packageName.isEmpty())
+        name = info.packageName + " - " + name;
+      List<String> credentials = testUsers.getOrDefault(feat.getKey(),
+          Arrays.asList(cfg("test.user", defaultUserName), cfg("test.password", defaultPassword)));
+      String user = credentials.get(0), pwd = credentials.get(1);
+
+      StringBuilder tcBuf = new StringBuilder();
+      int pass = 0, fail = 0, idx = 1;
+      for (Map.Entry<String, Status> sc : feat.getValue().entrySet()) {
+        boolean ok = sc.getValue() == Status.PASSED;
+        if (ok)
+          pass++;
+        else
+          fail++;
+        tcBuf.append(tcTpl.replace("$tcKey", "SC-" + String.format("%03d", idx++))
+            .replace("$tcName", sc.getKey()).replace("$tcStatus", ok ? "green" : "red"));
       }
+      oPass += pass;
+      oFail += fail;
+      int tot = pass + fail;
+      featBuf.append(featTpl.replace("$insertTc", tcBuf.toString()).replace("$featureName", name)
+          .replace("$username", user).replace("$password", pwd).replace("$passCount", String.valueOf(pass))
+          .replace("$failCount", String.valueOf(fail)).replace("$totalCount", String.valueOf(tot))
+          .replace("$featureStatus", fail == 0 ? "green" : "red")
+          .replace("$featurePassPercent", df.format((double) pass / tot * 100) + "%")
+          .replace("$featureNo", String.valueOf(fNo)));
+    }
+
+    int overall = oPass + oFail;
+    String sub = subTpl.replace("$overallPassCount", String.valueOf(oPass))
+        .replace("$overallFailCount", String.valueOf(oFail)).replace("$overallCount", String.valueOf(overall))
+        .replace("$overallStatus", oFail == 0 ? "green" : "red").replace("$overallPassPercent",
+            overall == 0 ? "0.00%" : df.format((double) oPass / overall * 100) + "%");
+
+    rpt = rpt.replace("$insertFeat", featBuf.toString()).replace("$insertSub", sub)
+        .replace("$overallPassCount", String.valueOf(oPass)).replace("$overallFailCount", String.valueOf(oFail))
+        .replace("$overallCount", String.valueOf(overall));
+
+    try {
+      FileUtils.writeStringToFile(new File(cfg("report.file.path", defaultReportPath)), rpt,
+          Charset.defaultCharset());
+    } catch (IOException ex) {
+      log.error("Write report fail", ex);
     }
   }
 
+  /*
+   * --------------------------------------------------- 📑 Helper classes
+   * ---------------------------------------------------
+   */
+
   /**
-   * This method writes the actual test results to the report and generates the
-   * final report
+   * Represents metadata extracted from a Gherkin feature. Immutable value holder
+   * for use inside the report generation logic.
    *
-   * @param resultMap
-   *            Map of Feature (URI) as key and Map of Scenario and Status as
-   *            value
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  public void parseResultToReport(Map<String, Map<String, Status>> resultMap) {
-    if (!resultMap.isEmpty()) {
-      String reportTemplate = constructReport();
-      if (reportTemplate != null) {
-        // HTML base code to add feature details to report
-        String featureDetailsBase = StringUtils.substringBetween(reportTemplate, "FeatureDetailsStart",
-            "FeatureDetailsEnd");
-        // HTML base code to add test case details to report
-        String tcDetailsBase = StringUtils.substringBetween(reportTemplate, "TcDetailsStart", "TcDetailsEnd");
-        // HTML base code to add subtotal details to report
-        String subtotalBase = StringUtils.substringBetween(reportTemplate, "SubTotalDetailsStart",
-            "SubTotalDetailsEnd");
+  private static class FeatureInfo {
+    /**
+     * Fully qualified URI of the feature file.
+     */
+    final String uri;
+    /**
+     * Java package where the feature logically belongs.
+     */
+    final String packageName;
+    /**
+     * Name of the feature file (e.g., Login.feature).
+     */
+    final String featureFileName;
+    /**
+     * Actual feature name defined inside the feature file (e.g., Feature: User
+     * Login).
+     */
+    final String featureNameDefinedInFeatureFile;
 
-        // HTML base code to add feature details to report after removing test case base
-        // code
-        featureDetailsBase = featureDetailsBase.replace("TcDetailsStart" + tcDetailsBase + "TcDetailsEnd",
-            "$insertTcDetailsHere");
-
-        // Remove base code, so that real execution data can be added later
-        reportTemplate = reportTemplate
-            .replace("TcDetailsStart" + tcDetailsBase + "TcDetailsEnd", "$insertTcDetailsHere")
-            .replace("SubTotalDetailsStart" + subtotalBase + "SubTotalDetailsEnd",
-                "$insertSubTotalDetailsHere")
-            .replace("FeatureDetailsStart" + featureDetailsBase + "FeatureDetailsEnd",
-                "$insertFeatureDetailsHere");
-
-        // Variable to store HTML code for feature details
-        StringBuilder featureDetails = new StringBuilder();
-        // Variable to store HTML code for subtotal
-        String overallDetails;
-
-        // Double formatter
-        DecimalFormat formatter = new DecimalFormat("0.00");
-
-        // Variables to store subtotal numeric data
-        int overallCount, overallPassCount = 0, overallFailCount = 0;
-        String overallPassPercent;
-
-        // Variable to be used for hiding and showing tc details for each feature
-        int featureNo = 0;
-        // Iterate through each feature
-        for (Map.Entry<String, Map<String, Status>> mapElement : resultMap.entrySet()) {
-          // Increase the feature number by 1 for each feature
-          featureNo++;
-
-          // Variable to store HTML code for test case details
-          StringBuilder tcDetails = new StringBuilder();
-
-          // Variables to store feature wise numeric data
-          int totalCount = 0, passCount = 0, failCount = 0;
-          String passPercent;
-
-          // Name of the feature
-          boolean useNameFromFeatureFile = Boolean
-              .parseBoolean(getPropertyValue("use.feature.name.from.feature.file"));
-          FeatureInfo featureInfo = featureFiles.get(mapElement.getKey());
-          String featureFileName = featureInfo.featureFileName;
-          String featurePackage = featureInfo.packageName;
-          String featureNameDefinedInFeatureFile = featureInfo.featureNameDefinedInFeatureFile;
-          boolean usePackageName = Boolean.parseBoolean(getPropertyValue("use.package.name")) || useDefault;
-          String featureNameForReport = useNameFromFeatureFile
-              ? featureNameDefinedInFeatureFile
-              : usePackageName
-                  ? (featurePackage.isEmpty()
-                      ? featureFileName
-                      : featurePackage + " - " + featureFileName)
-                  : featureFileName;
-
-          // Test Users
-          String userName = !testUsers.isEmpty()
-              ? testUsers.get(mapElement.getKey()) == null
-                  ? "NA"
-                  : testUsers.get(mapElement.getKey()).get(0)
-              : getPropertyValue("test.user");
-          String password = !testUsers.isEmpty()
-              ? testUsers.get(mapElement.getKey()) == null
-                  ? "NA"
-                  : testUsers.get(mapElement.getKey()).get(1)
-              : getPropertyValue("test.password");
-
-          // Test Cases for the current feature
-          Map<String, Status> scenarios = mapElement.getValue();
-          int scenarioCounter = 1;
-          for (Map.Entry<String, Status> scenario : scenarios.entrySet()) {
-            String tcKey = "SC-" + String.format("%03d", scenarioCounter);
-            String tcName = scenario.getKey();
-            Status scenarioResult = scenario.getValue();
-            String tcStatus;
-            if (scenarioResult == Status.PASSED) {
-              // If status is PASSED, then increase pass count and set green color for HTML
-              // code
-              passCount++;
-              tcStatus = "green";
-            } else {
-              // If status is FAILED, then increase fail count and set red color for HTML code
-              failCount++;
-              tcStatus = "red";
-            }
-            // calculate total count
-            totalCount = passCount + failCount;
-
-            // Use test case base HTML code, add real data and frame the actual code to be
-            // written to an HTML report
-            tcDetails.append(tcDetailsBase.replace("$tcKey", tcKey).replace("$tcName", tcName)
-                .replace("$tcStatus", tcStatus));
-            scenarioCounter++;
-          }
-
-          // Increase the subtotal pass, fail and total counts
-          overallPassCount = overallPassCount + passCount;
-          overallFailCount = overallFailCount + failCount;
-
-          // Calculate pass percentage for feature
-          passPercent = formatter.format(((double) passCount / (double) totalCount) * 100) + "%";
-
-          // Use feature base HTML code, add real data and frame the actual code to be
-          // written to an HTML report
-          featureDetails.append(featureDetailsBase.replace("$insertTcDetailsHere", tcDetails)
-              .replace("$featureName", featureNameForReport)
-              .replace("$username", userName != null ? userName : defaultUserName)
-              .replace("$password", password != null ? password : defaultPassword)
-              .replace("$passCount", String.valueOf(passCount))
-              .replace("$failCount", String.valueOf(failCount))
-              .replace("$totalCount", String.valueOf(totalCount))
-              .replace("$featureStatus", failCount == 0 ? "green" : "red")
-              .replace("$featurePassPercent", passPercent)
-              .replace("$featureNo", String.valueOf(featureNo)));
-
-          // Log feature details to console
-          log.info("{}: Total Count: {} | Pass Count: {} | Fail Count: {} | Percentage Pass: {}%",
-              featureNameForReport, totalCount, passCount, failCount, passPercent);
-        }
-
-        // Calculate total count for subtotal
-        overallCount = overallPassCount + overallFailCount;
-
-        // Calculate subtotal pass percentage for overall result
-        overallPassPercent = formatter.format(((double) overallPassCount / (double) overallCount) * 100) + "%";
-
-        // Use subtotal base HTML code, add real data and frame the actual code to be
-        // written to an HTML report
-        overallDetails = subtotalBase.replace("$overallPassCount", String.valueOf(overallPassCount))
-            .replace("$overallFailCount", String.valueOf(overallFailCount))
-            .replace("$overallCount", String.valueOf(overallCount))
-            .replace("$overallStatus", overallFailCount == 0 ? "green" : "red")
-            .replace("$overallPassPercent", overallPassPercent);
-
-        // Log subtotal details to console
-        log.info(
-            "Overall Count: {} | Overall Pass Count: {} | Overall Fail Count: {} | Overall Pass Percent: {}%",
-            overallCount, overallPassCount, overallFailCount, overallPassPercent);
-
-        // Finalise the HTML code to be written to report using the tc, feature and
-        // overall details generated above
-        reportTemplate = reportTemplate.replace("$insertFeatureDetailsHere", featureDetails)
-            .replace("$insertSubTotalDetailsHere", overallDetails)
-            .replace("$overallPassCount", String.valueOf(overallPassCount))
-            .replace("$overallFailCount", String.valueOf(overallFailCount))
-            .replace("$overallCount", String.valueOf(overallCount));
-
-        String filePathProvided = getPropertyValue("report.file.path");
-        // Create a new HTML file named SummaryReport.html
-        File newHtmlFile = new File(filePathProvided == null ? defaultReportPath : filePathProvided);
-        try {
-          // Write the HTML finalized code above to the new HTML file created
-          FileUtils.writeStringToFile(newHtmlFile, reportTemplate, Charset.defaultCharset());
-        } catch (IOException e) {
-          // Log error to console
-          log.error("Something went wrong... Could NOT generate report. Please contact the developer...", e);
-        }
-      } else {
-        log.error("Could NOT generate Report... Please contact the developer...");
-      }
-    } else {
-      log.info("No Results Found. Could NOT generate Report...");
+    /**
+     * Constructor to initialize all fields.
+     *
+     * @param u
+     *            feature file URI
+     * @param p
+     *            logical package name
+     * @param f
+     *            feature file name
+     * @param n
+     *            feature name defined within the feature file
+     * @author Pabitra Swain (contact.the.sdet@gmail.com)
+     */
+    FeatureInfo(String u, String p, String f, String n) {
+      uri = u;
+      packageName = p;
+      featureFileName = f;
+      featureNameDefinedInFeatureFile = n;
     }
+  }
+}
+
+/*
+ * --------------------------------------------------- 🔧 ConfigLoader
+ * (package‑private) ---------------------------------------------------
+ */
+
+/**
+ * Utility class to load configuration for the Cucumber Summary Reporter plugin.
+ * <p>
+ * This class supports multiple sources of configuration with the following
+ * override precedence (highest to lowest):
+ * <ol>
+ * <li>Plugin argument string (e.g., {@code env.url=https://stg})</li>
+ * <li>JVM system properties (e.g., {@code -Dcucumber.summary.env.url=...})</li>
+ * <li>Environment variables (e.g., {@code CUCUMBER_SUMMARY_ENV_URL=...})</li>
+ * <li>Properties file {@code cucumber-summary.properties} on the classpath</li>
+ * </ol>
+ * This class is Java 11 compatible and does not use modern Java features.
+ *
+ * @author Pabitra Swain (contact.the.sdet@gmail.com)
+ */
+class ConfigLoader {
+  private static final String ENV_PREFIX = "CUCUMBER_SUMMARY_", SYS_PREFIX = "cucumber.summary.";
+
+  private ConfigLoader() {
   }
 
   /**
-   * This method returns the timestamp of the test execution
+   * Load merged configuration from all supported sources.
    *
-   * @return Timestamp of test execution
+   * @param args
+   *            plugin argument string in format {@code key=value;key2=value2}
+   * @return combined {@link Properties} object
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  private String getCurrentTimestamp() {
-    String timeFormat = getPropertyValue("time.stamp.format");
-    String timeZone = getPropertyValue("time.zone");
-    SimpleDateFormat sdf = new SimpleDateFormat(timeFormat == null ? defaultTimeStampFormat : timeFormat);
-    sdf.setTimeZone(TimeZone.getTimeZone(timeZone == null ? defaultTimeZone : timeZone));
-    return sdf.format(new Date());
+  static Properties load(String args) {
+    Properties p = new Properties();
+    try (InputStream in = CucumberSummaryReporter.class.getClassLoader()
+        .getResourceAsStream("cucumber-summary.properties")) {
+      if (in != null)
+        p.load(in);
+    } catch (IOException ignored) {
+    }
+    System.getenv().forEach((k, v) -> {
+      if (k.startsWith(ENV_PREFIX))
+        p.setProperty(envKey(k), v);
+    });
+    System.getProperties().forEach((k, v) -> {
+      String s = String.valueOf(k);
+      if (s.startsWith(SYS_PREFIX))
+        p.setProperty(s.substring(SYS_PREFIX.length()), String.valueOf(v));
+    });
+    parseArgs(args).forEach(p::setProperty);
+    return p;
+  }
+
+  /**
+   * Normalize an environment variable to match properties key format. Example:
+   * {@code CUCUMBER_SUMMARY_ENV_URL → env.url}
+   *
+   * @param e
+   *            raw environment variable name
+   * @return normalized key
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  private static String envKey(String e) {
+    return e.substring(ENV_PREFIX.length()).toLowerCase(Locale.ROOT).replace('_', '.');
+  }
+
+  /**
+   * Parse plugin arguments of the form {@code key=value;key2=value2} into a map.
+   *
+   * @param a
+   *            raw plugin argument string
+   * @return parsed key-value map
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  private static Map<String, String> parseArgs(String a) {
+    Map<String, String> m = new HashMap<>();
+    if (a == null || a.trim().isEmpty())
+      return m;
+    for (String p : a.split("[;&]")) {
+      String[] kv = p.split("=", 2);
+      if (kv.length == 2)
+        m.put(kv[0].trim(), kv[1].trim());
+    }
+    return m;
   }
 }
