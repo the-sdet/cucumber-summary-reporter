@@ -42,7 +42,7 @@ To use Cucumber Summary Reporter, simply add the following dependency to your Ma
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.5</version>
+    <version>1.0.6</version>
 </dependency>
 ```
 
@@ -134,6 +134,17 @@ scenario.table.heading.color=#000000
 * And Subtotal Background Color will be - `#ffffff`
 * Scenario table Background color will be - `#efefef`
 * And Subtotal Background Color will be - `#090909`
+
+## Override Properties at Runtime
+Sometimes, we need to update values from runtime, E.g., depending on env,
+we use different URLs and that might NOT be possible to provide it properly in the properties file itself.
+Right???
+That's sorted.
+Replace the * in the below command with the expected property key and it works like charm.
+
+```code
+System.setProperty("cucumber.summary.*","new_value");
+```
 
 ## Example of Usage
 An Example of Usage of the Library can be found here: https://github.com/pabitra-qa/UsingCucumberSummaryReporter
