@@ -35,14 +35,14 @@ This library generates a summary report for Cucumber test results, which can be 
 
 Cucumber Summary Reporter requires Cucumber 7 or newer.
 
-To use Cucumber Summary Reporter, simply add the following dependency to your Maven project:
+To use Cucumber Summary Reporter, add the following dependency to your Maven project:
 
 ```xml
 
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.6</version>
+    <version>1.0.7</version>
 </dependency>
 ```
 
@@ -140,12 +140,17 @@ Sometimes, we need to update values from runtime, E.g., depending on env,
 we use different URLs and that might NOT be possible to provide it properly in the properties file itself.
 Right???
 That's sorted.
-Replace the * in the below command with the expected property key and it works like charm.
+Replace the * in the below command with the expected property key, and it works like charm.
 
 ```code
 System.setProperty("cucumber.summary.*","new_value");
 ```
-
+## Need Summary Data for some additional logging or reporting purposes?
+You can use the below code in your afterAll hook and get those details.
+```java
+SummaryData summaryData = CucumberSummaryReporter.getSummaryData();
+Map<String, Map<String, Status>> results = summaryData.results;
+```
 ## Example of Usage
 An Example of Usage of the Library can be found here: https://github.com/pabitra-qa/UsingCucumberSummaryReporter
 
@@ -159,7 +164,7 @@ An Example of Usage of the Library can be found here: https://github.com/pabitra
 
 ## 🚀 About Me
 
-I'm a dedicated and passionate Software Development Engineer in Test (SDET) trying to help the community in focusing in
+I'm a dedicated and passionate Software Development Engineer in Test (SDET) trying to help the community in focusing on 
 building great automation frameworks rather than writing the same utilities again and again and again...
 
 ## Connect With Me

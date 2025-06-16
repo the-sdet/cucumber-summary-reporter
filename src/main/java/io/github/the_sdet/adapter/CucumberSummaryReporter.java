@@ -105,7 +105,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   /**
    * Feature → (Scenario → Status) mapping collected during execution.
    */
-  private final Map<String, Map<String, Status>> featureResults = new ConcurrentHashMap<>();
+  private static final Map<String, Map<String, Status>> featureResults = new ConcurrentHashMap<>();
 
   /**
    * Feature URI → static metadata (package, display name, etc.).
@@ -116,6 +116,36 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
    * Mutable map to inject per‑feature test credentials at runtime.
    */
   private static final Map<String, List<String>> testUsers = new LinkedHashMap<>();
+
+  /**
+   * Immutable DTO exposing the raw execution summary.
+   *
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  public static class SummaryData {
+    /**
+     * Feature → Scenario → Status map (immutable deep copy).
+     */
+    public final Map<String, Map<String, Status>> results;
+
+    private SummaryData(Map<String, Map<String, Status>> src) {
+      Map<String, Map<String, Status>> copy = new LinkedHashMap<>();
+      src.forEach((f, m) -> copy.put(f, new LinkedHashMap<>(m)));
+      this.results = Collections.unmodifiableMap(copy);
+    }
+  }
+
+  /**
+   * Returns a deep‑copied snapshot of the current execution state. Safe to call
+   * even before the run finishes; never returns {@code null}.
+   *
+   * @return summary data
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  @SuppressWarnings("unused")
+  public static SummaryData getSummaryData() {
+    return new SummaryData(featureResults);
+  }
 
   /**
    * Register a pair of test credentials for a feature at runtime.
@@ -284,6 +314,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
   private void onRunFinished(TestRunFinished e) {
+    // generate the HTML first
     generateReport();
   }
 
