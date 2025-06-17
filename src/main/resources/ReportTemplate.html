@@ -9,6 +9,10 @@
         $styleGoesHere
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- Inter + Montserrat -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Montserrat:wght@600&display=swap" rel="stylesheet">
+
 </head>
 
 <body>
@@ -51,7 +55,7 @@
             <span class="span2">Status</span>
             <span class="span2 hide-in-mobile">Pass (%)</span>
         </div>
-        <button type="button" class="arrow-button-heading" onclick="toggleAll()" id="toggle-all">&#x27A4;</button>
+        <button type="button" class="arrow-button-heading" onclick="toggleAll()" id="toggle-all"><i class="fas fa-angle-right  fa-lg"></i></button>
     </div>
     FeatureDetailsStart<div class="row">
     <div class="span-container">
@@ -66,7 +70,7 @@
         <span class="span2 hide-in-mobile">$featurePassPercent</span>
     </div>
     <button type="button" class="arrow-button" onclick="toggleInnerDiv($featureNo)"
-            id="arrow-button-$featureNo">&#x27A4;</button>
+            id="arrow-button-$featureNo"><i class="fas fa-angle-right  fa-lg"></i></button>
     <div class="inner-div" id="inner-div-$featureNo" style="display: none;">
         <table class="dataTable">
             <tr class="data-heading">
@@ -96,7 +100,7 @@
                 </span>
             <span class="span2 hide-in-mobile">$overallPassPercent</span>SubTotalDetailsEnd
         </div>
-        <button type="button" class="arrow-button-btm" onclick="toggleAll()" id="toggle-all-btm">&#x27A4;</button>
+        <button type="button" class="arrow-button-btm" onclick="toggleAll()" id="toggle-all-btm"><i class="fas fa-angle-right  fa-lg"></i></button>
     </div>
 </div>
 <script>

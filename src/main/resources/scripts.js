@@ -4,17 +4,17 @@ function toggleInnerDiv(rowId) {
     var arrowButton = document.getElementById("arrow-button-" + rowId);
     var arrowButtonMain = document.getElementById("toggle-all");
     var arrowButtonBtm = document.getElementById("toggle-all-btm");
-    var openSymbol = '\u23CF'; // Eject symbol
-    var closedSymbol = '\u27A4'; // Rightwards arrow
+    var openSymbol = '<i class="fas fa-angle-up  fa-lg"></i>'; // Eject symbol
+    var closedSymbol = '<i class="fas fa-angle-right  fa-lg"></i>'; // Rightwards arrow
     if (innerDiv.style.display === "none") {
         innerDiv.style.display = "block";
-        arrowButton.innerText = openSymbol;
-        arrowButtonMain.innerText = openSymbol;
-        arrowButtonBtm.innerText = openSymbol;
+        arrowButton.innerHTML = openSymbol;
+        arrowButtonMain.innerHTML = openSymbol;
+        arrowButtonBtm.innerHTML = openSymbol;
         isAllExpanded = true;
     } else {
         innerDiv.style.display = "none";
-        arrowButton.innerText = closedSymbol;
+        arrowButton.innerHTML = closedSymbol;
     }
 }
 
@@ -24,8 +24,8 @@ function toggleAll() {
     var arrowButtons = document.querySelectorAll("[id^='arrow-button-']");
     var arrowButtonMain = document.getElementById("toggle-all");
     var arrowButtonBtm = document.getElementById("toggle-all-btm");
-    var openSymbol = '\u23CF'; // Eject symbol
-    var closedSymbol = '\u27A4'; // Rightwards arrow
+    var openSymbol = '<i class="fas fa-angle-up  fa-lg"></i>'; // Eject symbol
+    var closedSymbol = '<i class="fas fa-angle-right  fa-lg"></i>'; // Rightwards arrow
 
     if (isAllExpanded) {
         // Collapse all
@@ -33,10 +33,10 @@ function toggleAll() {
             innerDiv.style.display = "none";
         });
         arrowButtons.forEach(function (arrowButton) {
-            arrowButton.innerText = closedSymbol;
+            arrowButton.innerHTML = closedSymbol;
         });
-        arrowButtonMain.innerText = closedSymbol;
-        arrowButtonBtm.innerText = closedSymbol;
+        arrowButtonMain.innerHTML = closedSymbol;
+        arrowButtonBtm.innerHTML = closedSymbol;
         isAllExpanded = false;
     } else {
         // Expand all
@@ -44,10 +44,10 @@ function toggleAll() {
             innerDiv.style.display = "block";
         });
         arrowButtons.forEach(function (arrowButton) {
-            arrowButton.innerText = openSymbol;
+            arrowButton.innerHTML = openSymbol;
         });
-        arrowButtonMain.innerText = openSymbol;
-        arrowButtonBtm.innerText = openSymbol;
+        arrowButtonMain.innerHTML = openSymbol;
+        arrowButtonBtm.innerHTML = openSymbol;
         isAllExpanded = true;
     }
 }

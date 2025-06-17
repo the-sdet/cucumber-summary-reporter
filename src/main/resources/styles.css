@@ -1,7 +1,7 @@
 body {
-    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-size: 14px;
-    color: #090909;
+  font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  color: #090909;
 }
 
 .container {
@@ -9,6 +9,7 @@ body {
     flex-direction: column;
     align-items: center;
     width: 100%;
+    max-width: $defaultMaxWidthpx;
     margin: 0 auto;
 }
 
@@ -53,12 +54,15 @@ table.summary td {
     background-color: $defaultHeadingBgColor;
     color: $defaultHeadingColor;
     font-weight: bold;
+    min-height: 50px;
 }
 
 .subtotal {
     background-color: $defaultSubTotalBgColor;
     color: $defaultSubTotalColor;
     font-weight: bold;
+    min-height: 50px;
+    margin-bottom: 10px;
 }
 
 .span2 {
@@ -137,7 +141,7 @@ table.dataTable td:last-child {
 table.summary {
     border-collapse: collapse;
     width: 100%;
-    margin-top: 20px;
+    margin-top: 10px;
     margin-bottom: 20px;
 }
 
@@ -151,7 +155,8 @@ td {
 
 table.summary th {
     background-color: $defaultHeadingBgColor;
-    color: $defaultHeadingColor
+    color: $defaultHeadingColor;
+    height: 30px;
 }
 
 a,
@@ -180,14 +185,15 @@ a:visited {
     margin: 0 auto;
 }
 
+
 .circle.red,
 .circle-tc.red {
-    background-color: red;
+    background-color: #FF3030;
 }
 
 .circle.green,
 .circle-tc.green {
-    background-color: green;
+    background-color: #00B000;
 }
 
 .circle.orange,
@@ -229,16 +235,8 @@ td.top {
     font-weight: 600;
 }
 
-@media (min-width:1100px) {
-    .row {
-        width: $defaultDesktopViewWidth;
-    }
-}
-
-@media (max-width:1100px) {
-    .row {
-        width: 100%;
-    }
+.row {
+    width: 100%;
 }
 
 @media (max-width:800px) {

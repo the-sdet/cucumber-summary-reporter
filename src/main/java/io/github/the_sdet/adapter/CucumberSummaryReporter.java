@@ -174,7 +174,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   private static final String defaultPassword = "---";
   private static final String defaultTimeStampFormat = "EEEE, dd-MMM-yyyy HH:mm:ss z";
   private static final String defaultTimeZone = "IST";
-  private static final String defaultDesktopViewWidth = "80%";
+  private static final String defaultDesktopMaxWidth = "1280";
   private static final String defaultHeadingBgColor = "#23436a";
   private static final String defaultHeadingColor = "#ffffff";
   private static final String defaultSubTotalBgColor = "#cbcbcb";
@@ -378,7 +378,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
               cfg("scenario.table.heading.background.color", defaultScenarioTableHeadingBgColor))
           .replace("$defaultScenarioTableHeadingColor",
               cfg("scenario.table.heading.color", defaultScenarioTableHeadingColor))
-          .replace("$defaultDesktopViewWidth", cfg("desktop.view.width", defaultDesktopViewWidth));
+          .replace("$defaultMaxWidth", cfg("desktop.view.max.width", defaultDesktopMaxWidth));
 
       if (Boolean.parseBoolean(cfg("show.env", "false")) && cfg("env.url") != null) {
         r = r.replace("$enterUrl", cfg("env.url"));
