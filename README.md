@@ -42,7 +42,7 @@ To use Cucumber Summary Reporter, add the following dependency to your Maven pro
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.7</version>
+    <version>1.0.8</version>
 </dependency>
 ```
 
@@ -110,8 +110,9 @@ show.execution.timestamp=true
 time.stamp.format=EEEE, dd-MMM-yyyy HH:mm:ss z
 time.zone=IST
 
-#The Default desktop view is set to 80% width. You can change it with the below property
-desktop.view.width=100%
+#The Max desktop view is set to 1280 px for better look and feel.
+# You can change it with the below property (don't include px at the end; use just numbers)
+desktop.view.max.width=1280
 
 heading.background.color=#23436a
 heading.color=#ffffff
