@@ -1,70 +1,99 @@
 var isAllExpanded = false; // Keeps track of the toggle state
+const OPEN_ICON   = '<i class="fas fa-angle-up fa-lg"></i>';
+const CLOSED_ICON = '<i class="fas fa-angle-right fa-lg"></i>';
+
+/**
+ * Check if **any** inner‑div is visible.
+ * If so → show “open” icon on the global toggle buttons;
+ * otherwise → show “closed” icon.
+ * Also refresh the `isAllExpanded` flag so toggleAll() stays in sync.
+ */
+function syncOverallArrow() {
+  const innerDivs = document.querySelectorAll("[id^='inner-div-']");
+  const anyOpen   = Array.from(innerDivs).some(div => div.style.display !== "none");
+
+  const icon = anyOpen ? OPEN_ICON : CLOSED_ICON;
+
+  const arrowMain   = document.getElementById("toggle-all");
+  const arrowBottom = document.getElementById("toggle-all-btm");
+
+  if (arrowMain)   arrowMain.innerHTML   = icon;
+  if (arrowBottom) arrowBottom.innerHTML = icon;
+
+  // keep global flag consistent with real state
+  isAllExpanded = anyOpen;
+}
+
 function toggleInnerDiv(rowId) {
-    var innerDiv = document.getElementById("inner-div-" + rowId);
-    var arrowButton = document.getElementById("arrow-button-" + rowId);
-    var arrowButtonMain = document.getElementById("toggle-all");
-    var arrowButtonBtm = document.getElementById("toggle-all-btm");
-    var openSymbol = '<i class="fas fa-angle-up  fa-lg"></i>'; // Eject symbol
-    var closedSymbol = '<i class="fas fa-angle-right  fa-lg"></i>'; // Rightwards arrow
-    if (innerDiv.style.display === "none") {
-        innerDiv.style.display = "block";
-        arrowButton.innerHTML = openSymbol;
-        arrowButtonMain.innerHTML = openSymbol;
-        arrowButtonBtm.innerHTML = openSymbol;
-        isAllExpanded = true;
-    } else {
-        innerDiv.style.display = "none";
-        arrowButton.innerHTML = closedSymbol;
-    }
+  const innerDiv = document.getElementById(`inner-div-${rowId}`);
+  const arrowButton = document.getElementById(`arrow-button-${rowId}`);
+  const arrowButtonMain = document.getElementById("toggle-all");
+  const arrowButtonBtm = document.getElementById("toggle-all-btm");
+
+  const isCollapsed = innerDiv.style.display === "none";
+  const symbol = isCollapsed ? OPEN_ICON : CLOSED_ICON;
+
+  innerDiv.style.display = isCollapsed ? "block" : "none";
+  arrowButton.innerHTML = symbol;
+
+  // Only update main/bottom buttons if expanding
+  if (isCollapsed) {
+    arrowButtonMain.innerHTML = symbol;
+    arrowButtonBtm.innerHTML = symbol;
+    isAllExpanded = true;
+  }
+  syncOverallArrow();
 }
 
 function toggleAll() {
-    // Get all inner div elements and arrow buttons
-    var innerDivs = document.querySelectorAll("[id^='inner-div-']");
-    var arrowButtons = document.querySelectorAll("[id^='arrow-button-']");
-    var arrowButtonMain = document.getElementById("toggle-all");
-    var arrowButtonBtm = document.getElementById("toggle-all-btm");
-    var openSymbol = '<i class="fas fa-angle-up  fa-lg"></i>'; // Eject symbol
-    var closedSymbol = '<i class="fas fa-angle-right  fa-lg"></i>'; // Rightwards arrow
+  const innerDivs = document.querySelectorAll("[id^='inner-div-']");
+  const arrowButtons = document.querySelectorAll("[id^='arrow-button-']");
+  const arrowButtonMain = document.getElementById("toggle-all");
+  const arrowButtonBtm = document.getElementById("toggle-all-btm");
 
-    if (isAllExpanded) {
-        // Collapse all
-        innerDivs.forEach(function (innerDiv) {
-            innerDiv.style.display = "none";
-        });
-        arrowButtons.forEach(function (arrowButton) {
-            arrowButton.innerHTML = closedSymbol;
-        });
-        arrowButtonMain.innerHTML = closedSymbol;
-        arrowButtonBtm.innerHTML = closedSymbol;
-        isAllExpanded = false;
-    } else {
-        // Expand all
-        innerDivs.forEach(function (innerDiv) {
-            innerDiv.style.display = "block";
-        });
-        arrowButtons.forEach(function (arrowButton) {
-            arrowButton.innerHTML = openSymbol;
-        });
-        arrowButtonMain.innerHTML = openSymbol;
-        arrowButtonBtm.innerHTML = openSymbol;
-        isAllExpanded = true;
-    }
+  const expand = !isAllExpanded;
+  const displayStyle = expand ? "block" : "none";
+  const icon = expand ? OPEN_ICON : CLOSED_ICON;
+
+  // Update inner divs
+  innerDivs.forEach(div => div.style.display = displayStyle);
+
+  // Update all row arrow buttons
+  arrowButtons.forEach(btn => btn.innerHTML = icon);
+
+  // Update header and bottom toggle buttons
+  if (arrowButtonMain) arrowButtonMain.innerHTML = icon;
+  if (arrowButtonBtm) arrowButtonBtm.innerHTML = icon;
+
+  // Flip state
+  isAllExpanded = expand;
 }
 
-function downloadReportImage() {
-              const target = document.querySelector('.container');
-              html2canvas(target, {
-                <!--backgroundColor: null,  // keep transparency if needed-->
-                scale: 2                // increase for higher resolution
-              }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'cucumber-test-summary.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-              });
-            }
 
+function downloadReportImage() {
+  const target = document.querySelector('.container');
+
+  html2canvas(target, {
+    backgroundColor: null, // keep transparency
+    scale: 2               // higher resolution
+  }).then(canvas => {
+
+    // build timestamp:  yyyyMMdd_HHmmss
+    const now   = new Date();
+    const ts    = now.toISOString().replace(/[-:T]/g, '').slice(0, 15); // yyyyMMddHHmmss
+    const fileName = `CucumberTestSummary_${ts}.png`;
+
+    // trigger download
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);         // free memory
+    }, 'image/png');
+  });
+}
 const pass   = $overallPassCount;
 const fail   = $overallFailCount;
 const skipped = $overallSkipCount;
@@ -139,7 +168,7 @@ const config = {
 const myChart = new Chart(document.getElementById('myPieChart'), config);
 
 function filterScenarios() {
-  /* 1️⃣  Make sure all features are open first */
+  /* Make sure all features are open first */
   if (!isAllExpanded) {        // global flag you already maintain
     toggleAll();               // this sets isAllExpanded = true
   }
@@ -172,27 +201,22 @@ function filterScenarios() {
 }
 
 function resetFilter() {
-  // 1. set dropdown back to “All”
-  document.getElementById("scenarioFilter").value = "all";
+  // 1. Reset checkboxes
+  document.querySelectorAll(".status-filter").forEach(cb => cb.checked = true);
 
-  // 2. re‑apply filter (this will expand all and show everything)
+  // 2. Apply filters (expands everything)
   filterScenarios();
 
-  // 3. OPTIONAL: collapse everything afterwards
-  //    comment out these two lines if you prefer everything to remain open
+  // 3. Collapse all (if currently expanded)
   if (isAllExpanded) {
-    toggleAll();          // will collapse and flip icons
+    toggleAll(); // This will also reset the arrow icons and set isAllExpanded = false
   }
 }
+
 
 document.querySelectorAll(".status-filter").forEach(cb =>
   cb.addEventListener("change", filterScenarios)
 );
-
-function resetFilter() {
-  document.querySelectorAll(".status-filter").forEach(cb => cb.checked = true);
-  filterScenarios();
-}
 
 function filterScenarios() {
   if (!isAllExpanded) toggleAll(); // expand if not already
