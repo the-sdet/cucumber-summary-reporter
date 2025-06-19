@@ -42,7 +42,7 @@ To use Cucumber Summary Reporter, add the following dependency to your Maven pro
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>1.0.8</version>
+    <version>2.0.0</version>
 </dependency>
 ```
 

@@ -174,7 +174,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   private static final String defaultPassword = "---";
   private static final String defaultTimeStampFormat = "EEEE, dd-MMM-yyyy HH:mm:ss z";
   private static final String defaultTimeZone = "IST";
-  private static final String defaultDesktopMaxWidth = "1280";
+  private static final String defaultDesktopMaxWidth = "1320"; // Excluding Padding 1280
   private static final String defaultHeadingBgColor = "#23436a";
   private static final String defaultHeadingColor = "#ffffff";
   private static final String defaultSubTotalBgColor = "#cbcbcb";
@@ -422,13 +422,17 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       log.info("No results – skip report");
       return;
     }
-    String rpt = skeleton();
-    if (rpt == null)
-      return;
 
+    String rpt = skeleton();
+    if (rpt == null) {
+      return;
+    }
+
+    // Extract template fragments
     String featTpl = StringUtils.substringBetween(rpt, "FeatureDetailsStart", "FeatureDetailsEnd");
     String tcTpl = StringUtils.substringBetween(rpt, "TcDetailsStart", "TcDetailsEnd");
     String subTpl = StringUtils.substringBetween(rpt, "SubTotalDetailsStart", "SubTotalDetailsEnd");
+
     featTpl = featTpl.replace("TcDetailsStart" + tcTpl + "TcDetailsEnd", "$insertTc");
     rpt = rpt.replace("TcDetailsStart" + tcTpl + "TcDetailsEnd", "$insertTc")
         .replace("SubTotalDetailsStart" + subTpl + "SubTotalDetailsEnd", "$insertSub")
@@ -436,51 +440,89 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
 
     StringBuilder featBuf = new StringBuilder();
     DecimalFormat df = new DecimalFormat("0.00");
-    int oPass = 0, oFail = 0, fNo = 0;
+
+    int oPass = 0;
+    int oFail = 0;
+    int oSkip = 0;
+    int fNo = 0;
 
     for (Map.Entry<String, Map<String, Status>> feat : featureResults.entrySet()) {
       fNo++;
       FeatureInfo info = featureFiles.get(feat.getKey());
+
       String name = Boolean.parseBoolean(cfg("use.feature.name.from.feature.file", "false"))
           ? info.featureNameDefinedInFeatureFile
           : info.featureFileName;
-      if (Boolean.parseBoolean(cfg("use.package.name", "true")) && !info.packageName.isEmpty())
+
+      if (Boolean.parseBoolean(cfg("use.package.name", "true")) && !info.packageName.isEmpty()) {
         name = info.packageName + " - " + name;
+      }
+
       List<String> credentials = testUsers.getOrDefault(feat.getKey(),
           Arrays.asList(cfg("test.user", defaultUserName), cfg("test.password", defaultPassword)));
-      String user = credentials.get(0), pwd = credentials.get(1);
+
+      String user = credentials.get(0);
+      String pwd = credentials.get(1);
 
       StringBuilder tcBuf = new StringBuilder();
-      int pass = 0, fail = 0, idx = 1;
+      int pass = 0;
+      int fail = 0;
+      int skip = 0;
+      int idx = 1;
+
       for (Map.Entry<String, Status> sc : feat.getValue().entrySet()) {
-        boolean ok = sc.getValue() == Status.PASSED;
-        if (ok)
+        Status st = sc.getValue();
+
+        if (st == Status.PASSED) {
           pass++;
-        else
+        } else if (st == Status.FAILED) {
           fail++;
+        } else {
+          skip++; // SKIPPED, PENDING, etc.
+        }
+
+        String tcColor = (st == Status.PASSED) ? "green" : (st == Status.FAILED) ? "red" : "cyan";
+
         tcBuf.append(tcTpl.replace("$tcKey", "SC-" + String.format("%03d", idx++))
-            .replace("$tcName", sc.getKey()).replace("$tcStatus", ok ? "green" : "red"));
+            .replace("$tcName", sc.getKey()).replace("$tcStatus", tcColor));
       }
+
       oPass += pass;
       oFail += fail;
-      int tot = pass + fail;
+      oSkip += skip;
+
+      int tot = pass + fail + skip;
+
+      String featStatus = (fail > 0) ? "red" : (skip > 0) ? "cyan" : "green";
+
       featBuf.append(featTpl.replace("$insertTc", tcBuf.toString()).replace("$featureName", name)
           .replace("$username", user).replace("$password", pwd).replace("$passCount", String.valueOf(pass))
-          .replace("$failCount", String.valueOf(fail)).replace("$totalCount", String.valueOf(tot))
-          .replace("$featureStatus", fail == 0 ? "green" : "red")
-          .replace("$featurePassPercent", df.format((double) pass / tot * 100) + "%")
+          .replace("$failCount", String.valueOf(fail)).replace("$skipCount", String.valueOf(skip))
+          .replace("$totalCount", String.valueOf(tot)).replace("$featureStatus", featStatus)
+          .replace("$featurePassPercent", tot == 0 ? "0.00%" : df.format((double) pass / tot * 100) + "%")
           .replace("$featureNo", String.valueOf(fNo)));
     }
 
-    int overall = oPass + oFail;
+    int overall = oPass + oFail + oSkip;
+    double passPct = overall == 0 ? 0.00 : (double) oPass / overall * 100;
+
+    String overallStatus;
+    if (oFail > 0) {
+      overallStatus = "red"; // Any failure dominates
+    } else if (oPass > 0) {
+      overallStatus = "green"; // At least one pass, rest could be skipped
+    } else {
+      overallStatus = "cyan"; // All skipped
+    }
+
     String sub = subTpl.replace("$overallPassCount", String.valueOf(oPass))
-        .replace("$overallFailCount", String.valueOf(oFail)).replace("$overallCount", String.valueOf(overall))
-        .replace("$overallStatus", oFail == 0 ? "green" : "red").replace("$overallPassPercent",
-            overall == 0 ? "0.00%" : df.format((double) oPass / overall * 100) + "%");
+        .replace("$overallFailCount", String.valueOf(oFail)).replace("$overallSkipCount", String.valueOf(oSkip))
+        .replace("$overallCount", String.valueOf(overall)).replace("$overallStatus", overallStatus)
+        .replace("$overallPassPercent", df.format(passPct) + "%");
 
     rpt = rpt.replace("$insertFeat", featBuf.toString()).replace("$insertSub", sub)
         .replace("$overallPassCount", String.valueOf(oPass)).replace("$overallFailCount", String.valueOf(oFail))
-        .replace("$overallCount", String.valueOf(overall));
+        .replace("$overallSkipCount", String.valueOf(oSkip)).replace("$overallCount", String.valueOf(overall));
 
     try {
       FileUtils.writeStringToFile(new File(cfg("report.file.path", defaultReportPath)), rpt,
