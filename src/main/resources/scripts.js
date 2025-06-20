@@ -69,31 +69,39 @@ function toggleAll() {
   isAllExpanded = expand;
 }
 
-
-function downloadReportImage() {
+function downloadReportImage () {
   const target = document.querySelector('.container');
+  const originalWidth = target.style.width;       // save inline width (if any)
 
-  html2canvas(target, {
-    backgroundColor: null, // keep transparency
-    scale: 2               // higher resolution
-  }).then(canvas => {
+  // widen container to its full scroll width
+  target.style.width = target.scrollWidth + 'px';
 
-    // build timestamp:  yyyyMMdd_HHmmss
-    const now   = new Date();
-    const ts    = now.toISOString().replace(/[-:T]/g, '').slice(0, 15); // yyyyMMddHHmmss
-    const fileName = `CucumberTestSummary_${ts}.png`;
+  html2canvas(target, { scale: 2 })
+    .then(canvas => {
+      // 2restore original width
+      target.style.width = originalWidth || '';
 
-    // trigger download
-    canvas.toBlob(blob => {
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);         // free memory
-    }, 'image/png');
-  });
+      // download
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const timestamp = getTimestamp();  // "2025-06-20_07-12-45"
+        const a   = document.createElement('a');
+        a.href = url;
+        a.download = `CucumberTestSummary_${timestamp}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    });
 }
+
+function getTimestamp() {
+  const now = new Date();
+  return now.toISOString()
+            .replace(/T/, '_')      // replace 'T' with underscore
+            .replace(/:/g, '-')     // replace colons with dashes
+            .replace(/\..+/, '');   // remove milliseconds and Z
+}
+
 const pass   = $overallPassCount;
 const fail   = $overallFailCount;
 const skipped = $overallSkipCount;

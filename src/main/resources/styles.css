@@ -43,9 +43,9 @@ table.dataTable{width:100%;border-collapse:collapse;table-layout:fixed;font-size
 table.dataTable th,table.dataTable td{padding:10px;border:1px solid #e4e6eb;box-sizing:border-box;}
 table.dataTable tr.data-heading{background:$defaultScenarioTableHeadingBgColor;color:$defaultScenarioTableHeadingColor;font-weight:bold;}
 table.dataTable td:last-child{text-align:center;}
-.scenario-table colgroup col:nth-child(1){width:10%;}
-.scenario-table colgroup col:nth-child(2){width:80%;}
-.scenario-table colgroup col:nth-child(3){width:10%;}
+.scenario-table colgroup col:nth-child(1){width:8%;}
+.scenario-table colgroup col:nth-child(2){width:84%;}
+.scenario-table colgroup col:nth-child(3){width:8%;}
 
 /* ─── Title + buttons ───────────────────────────── */
 .title-flex{background:#2d4373;color:#fff;padding:12px;border:none !important;}
@@ -105,6 +105,11 @@ td.top{font-weight:600;}
 .circle.orange, .circle-tc.orange { background: orange; }
 .circle.grey, .circle-tc.grey   { background: grey; }
 
+table.dataTable th,
+.heading .span2 {
+  white-space: nowrap;
+}
+
 /* ─── Responsive tweaks ─────────────────────────── */
 @media(max-width:900px){
   .hide-in-mobile{display:none;}
@@ -112,6 +117,9 @@ td.top{font-weight:600;}
   .arrow-button,.arrow-button-heading,.arrow-button-btm{flex-basis:15%;}
   .span-container{flex-basis:85%;}
   .container{padding:8px;}
+  .scenario-table colgroup col:nth-child(1){width:15%;}
+  .scenario-table colgroup col:nth-child(2){width:70%;}
+  .scenario-table colgroup col:nth-child(3){width:15%;}
 }
 @media(max-width:600px){
   .chart-container{width:180px;}
