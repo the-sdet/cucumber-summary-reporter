@@ -9,15 +9,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Fonts and Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Montserrat:wght@600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Montserrat:wght@600&display=swap"
+          rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
     <!-- Chart.js and plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-doughnutlabel@1.0.3"></script>
 
-    <!-- html2canvas for download -->
+    <!-- html2canvas for image download -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <!-- html2canvas for excel download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <style>
         $styleGoesHere
@@ -35,9 +39,16 @@
                 <th class="top title-flex" colspan="3">
                     <div class="title-container">
                         <div class="title-text">$reportTitle</div>
-                        <button id="downloadBtn" class="download-btn" onclick="downloadReportImage()">
-                            <i class="fas fa-file-export"></i>&nbsp;Download
-                        </button>
+                        <div class="download-group">
+                            <select id="exportType" class="export-select">
+                                <option value="image">Image (PNG)</option>
+                                <option value="excel">Excel (XLSX)</option>
+                            </select>
+
+                            <button id="downloadBtn" class="download-btn" onclick="downloadReport()">
+                                <i class="fas fa-file-export"></i>Download
+                            </button>
+                        </div>
                     </div>
                 </th>
             </tr>
@@ -69,9 +80,14 @@
     <!-- ────── Filter Bar ────── -->
     <div class="filter-bar">
         <div class="filter-left">
-            <label><input type="checkbox" class="status-filter" value="green" checked><i class="fas fa-check-circle" style="color:#00B000"></i> Passed</label>
-            <label><input type="checkbox" class="status-filter" value="red" checked><i class="fas fa-times-circle" style="color:#FF3030"></i> Failed</label>
-            <label><input type="checkbox" class="status-filter" value="cyan" checked><i class="fas fa-minus-circle" style="color:#88AAFF"></i> Skipped</label>
+            <label><input type="checkbox" class="status-filter" value="green" checked><i class="fas fa-check-circle"
+                                                                                         style="color:#00B000"></i>
+                Passed</label>
+            <label><input type="checkbox" class="status-filter" value="red" checked><i class="fas fa-times-circle"
+                                                                                       style="color:#FF3030"></i> Failed</label>
+            <label><input type="checkbox" class="status-filter" value="cyan" checked><i class="fas fa-minus-circle"
+                                                                                        style="color:#88AAFF"></i>
+                Skipped</label>
         </div>
         <div class="filter-right">
             <button id="resetFilterBtn" class="reset-btn" onclick="resetFilter()">
@@ -83,71 +99,71 @@
     <!-- ────── Feature Header Row ────── -->
     <div class="row heading">
         <div class="span-container">
-            <span class="span1">Feature Name</span>
-            <span class="span1 hide-in-mobile">Test Credentials</span>
-            <span class="span2 hide-in-mobile">Passed</span>
-            <span class="span2 hide-in-mobile">Failed</span>
-            <span class="span2 hide-in-mobile">Skipped</span>
-            <span class="span2 hide-in-mobile">Total</span>
-            <span class="span2">Status</span>
-            <span class="span2 hide-in-mobile">Pass (%)</span>
+            <span class="span1 feature">Feature Name</span>
+            <span class="span1 credential credential-feat hide-in-mobile">Test Credentials</span>
+            <span class="span2 passed hide-in-mobile">Passed</span>
+            <span class="span2 failed hide-in-mobile">Failed</span>
+            <span class="span2 skipped hide-in-mobile">Skipped</span>
+            <span class="span2 total hide-in-mobile">Total</span>
+            <span class="span2 status">Status</span>
+            <span class="span2 pass-percent hide-in-mobile">Pass (%)</span>
         </div>
         <button type="button" class="arrow-button-heading" onclick="toggleAll()" id="toggle-all">
             <i class="fas fa-angle-right fa-lg"></i>
         </button>
     </div>
 
-    <!-- ────── Feature Rows ────── -->
-    FeatureDetailsStart
+    <!-- FeatureDetailsStart -->
     <div class="row">
         <div class="span-container">
-            <span class="span1">$featureName</span>
-            <span class="span1 hide-in-mobile">$username<br/>$password</span>
-            <span class="span2 hide-in-mobile">$passCount</span>
-            <span class="span2 hide-in-mobile">$failCount</span>
-            <span class="span2 hide-in-mobile">$skipCount</span>
-            <span class="span2 hide-in-mobile">$totalCount</span>
-            <span class="span2"><span class="circle $featureStatus"></span></span>
-            <span class="span2 hide-in-mobile">$featurePassPercent</span>
+            <span class="span1 feature">$featureName</span>
+            <span class="span1 credential credential-feat hide-in-mobile">$username<br/>$password</span>
+            <span class="span2 passed hide-in-mobile">$passCount</span>
+            <span class="span2 failed hide-in-mobile">$failCount</span>
+            <span class="span2 skipped hide-in-mobile">$skipCount</span>
+            <span class="span2 total hide-in-mobile">$totalCount</span>
+            <span class="span2 status"><span class="circle $featureStatus"></span></span>
+            <span class="span2 pass-percent hide-in-mobile">$featurePassPercent</span>
         </div>
         <button type="button" class="arrow-button" onclick="toggleInnerDiv($featureNo)" id="arrow-button-$featureNo">
             <i class="fas fa-angle-right fa-lg"></i>
         </button>
         <div class="inner-div" id="inner-div-$featureNo" style="display: none;">
             <table class="dataTable scenario-table">
-                <colgroup>
-                    <col><col><col>
-                </colgroup>
                 <tr class="data-heading">
                     <td>Id</td>
                     <td>Name</td>
+                    <td class="credential-sc hide-in-mobile">Credentials</td>
                     <td>Status</td>
                 </tr>
-                TcDetailsStart
+                <!--TcDetailsStart-->
                 <tr>
                     <td>$tcKey</td>
                     <td>$tcName</td>
-                    <td><div class="circle-tc $tcStatus"></div></td>
+                    <td class="credential-sc hide-in-mobile">$tcUsername<br>$tcPassword</td>
+                    <td>
+                        <div class="circle-tc $tcStatus"></div>
+                    </td>
                 </tr>
-                TcDetailsEnd
+                <!--TcDetailsEnd-->
             </table>
         </div>
     </div>
-    FeatureDetailsEnd
+    <!--FeatureDetailsEnd-->
 
     <!-- ────── Overall Totals ────── -->
     <div class="row subtotal">
         <div class="span-container">
-            <span class="span1">Overall:</span>
-            <span class="span1 hide-in-mobile"></span>
-            SubTotalDetailsStart
-            <span class="span2 hide-in-mobile">$overallPassCount</span>
-            <span class="span2 hide-in-mobile">$overallFailCount</span>
-            <span class="span2 hide-in-mobile">$overallSkipCount</span>
-            <span class="span2 hide-in-mobile">$overallCount</span>
-            <span class="span2"><span class="circle $overallStatus"></span></span>
-            <span class="span2 hide-in-mobile">$overallPassPercent</span>
-            SubTotalDetailsEnd
+            <span class="span1 feature">Overall:</span>
+            <span class="span1 credential credential-feat hide-in-mobile"></span>
+            <!--SubTotalDetailsStart-->
+            <span class="span2 passed hide-in-mobile">$overallPassCount</span>
+            <span class="span2 failed hide-in-mobile">$overallFailCount</span>
+            <span class="span2 skipped hide-in-mobile">$overallSkipCount</span>
+            <span class="span2 total hide-in-mobile">$overallCount</span>
+            <span class="span2 status"><span class="circle $overallStatus"></span></span>
+            <span class="span2 pass-percent hide-in-mobile">$overallPassPercent</span>
+            <!--SubTotalDetailsEnd-->
         </div>
         <button type="button" class="arrow-button-btm" onclick="toggleAll()" id="toggle-all-btm">
             <i class="fas fa-angle-right fa-lg"></i>

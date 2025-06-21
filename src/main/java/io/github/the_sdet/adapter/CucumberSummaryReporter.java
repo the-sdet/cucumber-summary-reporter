@@ -1,5 +1,6 @@
 package io.github.the_sdet.adapter;
 
+import io.cucumber.java.Scenario;
 import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.*;
 import org.apache.commons.io.FileUtils;
@@ -15,7 +16,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Custom Cucumber plugin that generates a styled summary report in HTML.
@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>
  * Java 11 compatible – no records, no switch expressions.
  */
+@SuppressWarnings("unused")
 public class CucumberSummaryReporter implements ConcurrentEventListener {
 
   /*
@@ -105,17 +106,19 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   /**
    * Feature → (Scenario → Status) mapping collected during execution.
    */
-  private static final Map<String, Map<String, Status>> featureResults = new ConcurrentHashMap<>();
+  private static final Map<String, Map<String, ResultEntry>> featureResults = Collections
+      .synchronizedMap(new LinkedHashMap<>());
 
   /**
    * Feature URI → static metadata (package, display name, etc.).
    */
-  private final Map<String, FeatureInfo> featureFiles = new ConcurrentHashMap<>();
+  private final Map<String, FeatureInfo> featureFiles = Collections.synchronizedMap(new LinkedHashMap<>());
 
   /**
-   * Mutable map to inject per‑feature test credentials at runtime.
+   * Mutable maps to inject per‑feature/scenario test credentials at runtime.
    */
-  private static final Map<String, List<String>> testUsers = new LinkedHashMap<>();
+  private static final Map<String, List<String>> testUsersForFeatures = new LinkedHashMap<>();
+  private static final Map<String, List<String>> testUsersForScenarios = new LinkedHashMap<>();
 
   /**
    * Immutable DTO exposing the raw execution summary.
@@ -128,9 +131,17 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
      */
     public final Map<String, Map<String, Status>> results;
 
-    private SummaryData(Map<String, Map<String, Status>> src) {
+    private SummaryData(Map<String, Map<String, ResultEntry>> src) {
+      // Outer map preserves feature order
       Map<String, Map<String, Status>> copy = new LinkedHashMap<>();
-      src.forEach((f, m) -> copy.put(f, new LinkedHashMap<>(m)));
+
+      src.forEach((uri, inner) -> {
+        // Inner map: keep scenario order but convert ResultEntry → Status
+        Map<String, Status> statusMap = new LinkedHashMap<>();
+        inner.forEach((scenarioId, entry) -> statusMap.put(entry.display, entry.status));
+        copy.put(uri, Collections.unmodifiableMap(statusMap));
+      });
+
       this.results = Collections.unmodifiableMap(copy);
     }
   }
@@ -148,19 +159,52 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   }
 
   /**
-   * Register a pair of test credentials for a feature at runtime.
+   * Register a pair of test credentials for a feature at runtime. Will be removed
+   * in a future release.
    *
    * @param featureUri
-   *            feature URI as provided by Cucumber’s {@code Scenario#getUri()}
+   *            Scenario
+   * @param username
+   *            username to display in the HTML report
+   * @param password
+   *            password to display in the HTML report
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   * @deprecated Replaced by
+   *             {@link #registerTestUserForFeature(Scenario, String, String)}.
+   */
+  @Deprecated(since = "2.0.3")
+  public static void registerTestUser(String featureUri, String username, String password) {
+    testUsersForFeatures.put(featureUri, Arrays.asList(username, password));
+  }
+
+  /**
+   * Register a pair of test credentials for a feature at runtime.
+   *
+   * @param scenario
+   *            Scenario
    * @param username
    *            username to display in the HTML report
    * @param password
    *            password to display in the HTML report
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
    */
-  @SuppressWarnings("unused")
-  public static void registerTestUser(String featureUri, String username, String password) {
-    testUsers.put(featureUri, Arrays.asList(username, password));
+  public static void registerTestUserForFeature(Scenario scenario, String username, String password) {
+    testUsersForFeatures.put(scenario.getUri().toString(), Arrays.asList(username, password));
+  }
+
+  /**
+   * Register a pair of test credentials for a feature at runtime.
+   *
+   * @param scenario
+   *            Scenario
+   * @param username
+   *            username to display in the HTML report
+   * @param password
+   *            password to display in the HTML report
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  public static void registerTestUserForScenario(Scenario scenario, String username, String password) {
+    testUsersForScenarios.put(scenario.getId(), Arrays.asList(username, password));
   }
 
   /*
@@ -181,6 +225,8 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   private static final String defaultSubTotalColor = "#090909";
   private static final String defaultScenarioTableHeadingBgColor = "#efefef";
   private static final String defaultScenarioTableHeadingColor = "#090909";
+  private static final String defaultCredentialDisplayOpt = "feature";
+  private static final String defaultDisplayCredential = "false";
 
   /*
    * --------------------------------------------------- 🚚 Constructors
@@ -298,11 +344,17 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
    */
   private void onCaseFinished(TestCaseFinished e) {
     String uri = e.getTestCase().getUri().toString();
+    String id = String.valueOf(e.getTestCase().getId());
     String name = e.getTestCase().getName();
-    String key = "Scenario Outline".equals(e.getTestCase().getKeyword())
-        ? name + " #" + e.getTestCase().getLocation().getLine()
+    int line = e.getTestCase().getLocation().getLine();
+
+    String display = "Scenario Outline".equals(e.getTestCase().getKeyword())
+        ? name + " (Outline Row: " + line + ")"
         : name;
-    featureResults.computeIfAbsent(uri, k -> new LinkedHashMap<>()).put(key, e.getResult().getStatus());
+
+    featureResults.computeIfAbsent(uri, k -> new LinkedHashMap<>()).put(id,
+        new ResultEntry(display, e.getResult().getStatus()));
+
   }
 
   /**
@@ -318,6 +370,20 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
     generateReport();
   }
 
+  /**
+   * A class to contain scenarios and it's status
+   *
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  public static class ResultEntry {
+    final String display; // what report should show
+    final Status status;
+
+    ResultEntry(String display, Status status) {
+      this.display = display;
+      this.status = status;
+    }
+  }
   /*
    * --------------------------------------------------- 🖼 Report skeleton
    * ---------------------------------------------------
@@ -400,6 +466,21 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       } else {
         r = r.replace("TimeStampRow", "TimeStampRow hidden");
       }
+      if (Boolean.parseBoolean(cfg("display.credentials", defaultDisplayCredential))) {
+        String credOption = cfg("credentials.display.option", defaultCredentialDisplayOpt);
+        if (credOption.toLowerCase().contains("scenario"))
+          credOption = "scenario";
+        else
+          credOption = "feature";
+        if (credOption.equals("feature")) {
+          r = r.replace("credential-sc", "credential-sc hidden");
+        } else {
+          r = r.replace("credential-feat", "credential-feat hidden");
+        }
+      } else {
+        r = r.replace("credential-feat", "credential-feat hidden").replace("credential-sc",
+            "credential-sc hidden");
+      }
       return r;
     } catch (IOException ex) {
       log.error("Skeleton build fail", ex);
@@ -429,14 +510,14 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
     }
 
     // Extract template fragments
-    String featTpl = StringUtils.substringBetween(rpt, "FeatureDetailsStart", "FeatureDetailsEnd");
-    String tcTpl = StringUtils.substringBetween(rpt, "TcDetailsStart", "TcDetailsEnd");
-    String subTpl = StringUtils.substringBetween(rpt, "SubTotalDetailsStart", "SubTotalDetailsEnd");
+    String featTpl = StringUtils.substringBetween(rpt, "<!-- FeatureDetailsStart -->", "<!--FeatureDetailsEnd-->");
+    String tcTpl = StringUtils.substringBetween(rpt, "<!--TcDetailsStart-->", "<!--TcDetailsEnd-->");
+    String subTpl = StringUtils.substringBetween(rpt, "<!--SubTotalDetailsStart-->", "<!--SubTotalDetailsEnd-->");
 
-    featTpl = featTpl.replace("TcDetailsStart" + tcTpl + "TcDetailsEnd", "$insertTc");
-    rpt = rpt.replace("TcDetailsStart" + tcTpl + "TcDetailsEnd", "$insertTc")
-        .replace("SubTotalDetailsStart" + subTpl + "SubTotalDetailsEnd", "$insertSub")
-        .replace("FeatureDetailsStart" + featTpl + "FeatureDetailsEnd", "$insertFeat");
+    featTpl = featTpl.replace("<!--TcDetailsStart-->" + tcTpl + "<!--TcDetailsEnd-->", "$insertTc");
+    rpt = rpt.replace("<!--TcDetailsStart-->" + tcTpl + "<!--TcDetailsEnd-->", "$insertTc")
+        .replace("<!--SubTotalDetailsStart-->" + subTpl + "<!--SubTotalDetailsEnd-->", "$insertSub")
+        .replace("<!-- FeatureDetailsStart -->" + featTpl + "<!--FeatureDetailsEnd-->", "$insertFeat");
 
     StringBuilder featBuf = new StringBuilder();
     DecimalFormat df = new DecimalFormat("0.00");
@@ -446,7 +527,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
     int oSkip = 0;
     int fNo = 0;
 
-    for (Map.Entry<String, Map<String, Status>> feat : featureResults.entrySet()) {
+    for (Map.Entry<String, Map<String, ResultEntry>> feat : featureResults.entrySet()) {
       fNo++;
       FeatureInfo info = featureFiles.get(feat.getKey());
 
@@ -458,8 +539,8 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
         name = info.packageName + " - " + name;
       }
 
-      List<String> credentials = testUsers.getOrDefault(feat.getKey(),
-          Arrays.asList(cfg("test.user", defaultUserName), cfg("test.password", defaultPassword)));
+      List<String> credentials = testUsersForFeatures.getOrDefault(feat.getKey(),
+          Arrays.asList(defaultUserName, defaultPassword));
 
       String user = credentials.get(0);
       String pwd = credentials.get(1);
@@ -470,8 +551,8 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       int skip = 0;
       int idx = 1;
 
-      for (Map.Entry<String, Status> sc : feat.getValue().entrySet()) {
-        Status st = sc.getValue();
+      for (Map.Entry<String, ResultEntry> sc : feat.getValue().entrySet()) {
+        Status st = sc.getValue().status;
 
         if (st == Status.PASSED) {
           pass++;
@@ -483,8 +564,12 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
 
         String tcColor = (st == Status.PASSED) ? "green" : (st == Status.FAILED) ? "red" : "cyan";
 
+        List<String> scenarioCredentials = testUsersForScenarios.getOrDefault(sc.getKey(),
+            Arrays.asList(defaultUserName, defaultPassword));
+
         tcBuf.append(tcTpl.replace("$tcKey", "SC-" + String.format("%03d", idx++))
-            .replace("$tcName", sc.getKey()).replace("$tcStatus", tcColor));
+            .replace("$tcName", sc.getValue().display).replace("$tcUsername", scenarioCredentials.get(0))
+            .replace("$tcPassword", scenarioCredentials.get(1)).replace("$tcStatus", tcColor));
       }
 
       oPass += pass;
@@ -553,7 +638,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
      */
     final String packageName;
     /**
-     * Name of the feature file (e.g., Login.feature).
+     * Name of the feature file (e.g., Login).
      */
     final String featureFileName;
     /**
@@ -640,7 +725,7 @@ class ConfigLoader {
   }
 
   /**
-   * Normalize an environment variable to match properties key format. Example:
+   * Normalize an environment variable to match the property key format. Example:
    * {@code CUCUMBER_SUMMARY_ENV_URL → env.url}
    *
    * @param e

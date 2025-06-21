@@ -7,21 +7,45 @@
 
 This library generates a summary report for Cucumber test results, which can be integrated as a plugin/adapter for Cucumber. The report provides a concise overview of test execution, making it easier to analyze test stats or distribute a simplified summary, for example, via email.
 
-### Cucumber Summary Report — All Pass
-<img src="src/main/resources/img/Summary-Report-Pass.png" alt="Cucumber Summary Report - All Pass"/>
 
-### Cucumber Summary Report — Mixed Result
-<img src="src/main/resources/img/Summary-Report-Pass-Fail.png" alt="Cucumber Summary Report - Pass & Fail"/>
+### Cucumber Summary Report — All Pass - Scenario Wise Credentials
+<img src="src/main/resources/img/scenario-wise-cred.png" alt="Cucumber Summary Report - All Pass"/>
 
-### Cucumber Summary Report — Hover On Doughnut to see details
-<img src="src/main/resources/img/Summary-Report-Hover-Effect.png" alt="Cucumber Summary Report Hover Over Doughnut Chart"/>
+### Cucumber Summary Report — All Pass Extended - Scenario Wise Credentials
+<img src="src/main/resources/img/scenario-wise-cred-extended.png" alt="Cucumber Summary Report - All Pass"/>
 
+### Cucumber Summary Report — All Pass - Feature Wise Credentials
+<img src="src/main/resources/img/feature-wise-cred.png" alt="Cucumber Summary Report - All Pass"/>
 
-### Cucumber Summary Report Extended
-<img src="src/main/resources/img/Summary-Report-Extended.png" alt="Cucumber Summary Report Extended"/>
+### Cucumber Summary Report — All Pass Extended - Feature Wise Credentials
+<img src="src/main/resources/img/feature-wise-cred-extended.png" alt="Cucumber Summary Report - All Pass"/>
+
+### Cucumber Summary Report — Mixed Result (Pass & Fail)
+<img src="src/main/resources/img/pass-fail.png" alt="Cucumber Summary Report - Pass & Fail"/>
+
+### Cucumber Summary Report — Mixed Result Extended (Pass & Fail)
+<img src="src/main/resources/img/pass-fail-extended.png" alt="Cucumber Summary Report - Pass & Fail"/>
+
+### Cucumber Summary Report — Mixed Result (Pass & Fail & Skip)
+<img src="src/main/resources/img/pass-fail-skip.png" alt="Cucumber Summary Report - Pass & Fail"/>
+
+### Cucumber Summary Report — Mixed Result Extended (Pass & Fail & Skip)
+<img src="src/main/resources/img/pass-fail-skip-extended.png" alt="Cucumber Summary Report - Pass & Fail & Skip"/>
+
+### Cucumber Summary Report — Filter (Exclude Skip)
+<img src="src/main/resources/img/filter-exclude-skip.png" alt="Cucumber Summary Report - Filter (Exclude Skip)"/>
+
+### Cucumber Summary Report — Filter (Only Fail)
+<img src="src/main/resources/img/filter-only-fail.png" alt="Cucumber Summary Report - Filter (Only Fail)"/>
+
+### Cucumber Summary Report — Filter (Exclude Pass)
+<img src="src/main/resources/img/filter-exclude-pass.png" alt="Cucumber Summary Report - Filter (Exclude Pass)"/>
+
+### Cucumber Summary Report — Tablet View
+<img src="src/main/resources/img/tablet.png" alt="Cucumber Summary Report - Tablet View"/>
 
 ### Cucumber Summary Report — Mobile View
-<img src="src/main/resources/img/Summary-Report-Mobile-View.png" alt="Cucumber Summary Report - Mobile View"/>
+<img src="src/main/resources/img/mobile.png" alt="Cucumber Summary Report - Mobile View"/>
 
 ## Features
 * Generates a quick summary of Cucumber test results.
@@ -30,6 +54,7 @@ This library generates a summary report for Cucumber test results, which can be 
 * Supports output formats suitable for presentations or email reports.
 * Easy integration as a Cucumber plugin/adapter.
 * Optimised for Desktop, Tablet and Mobile View
+* Download Report in PNG and Excel
 
 ## Usage
 
@@ -42,7 +67,7 @@ To use Cucumber Summary Reporter, add the following dependency to your Maven pro
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>2.0.2</version>
+    <version>2.0.3</version>
 </dependency>
 ```
 
@@ -97,23 +122,26 @@ use.package.name=true
 # when true, the report will display Homepage Tests and Homepage when false
 use.feature.name.from.feature.file=false
 
-# These are the test user will be used in the report if 'Map<String, List<String>> testUsers' is NOT set.
-# These can be set at the runtime from the before or after hook like below
-# @After
-# public void afterTest(Scenario scenario) {
-#    testUsers.put(String.valueOf(scenario.getUri()), Arrays.asList("username, "password"));
-# }
-test.user=contact.the.sdet@gmail.com
-test.password=CucumberSummary@123
-
+# Below config will show the execution timestamp at the top of the report
 show.execution.timestamp=true
 time.stamp.format=EEEE, dd-MMM-yyyy HH:mm:ss z
 time.zone=IST
 
-#The Max desktop view is set to 1280 px for better look and feel.
-# You can change it with the below property (don't include px at the end; use just numbers)
-desktop.view.max.width=1280
+# in case you want to add credentials to the report, make use of the below properties.
+# when true, the report will display credentials, else it won't
+# default configuration is set to 'false'
+display.credentials=true
+# E.g., 
+# if you are using different credentials for each scenario, you can go for option=scenario
+# If you use the same credentials for all scenarios for a feature, you can go for option=feature
+# default configuration is set to 'feature'
+credentials.display.option=scenario
 
+# The Max desktop view is set to 1280 px (1320 - 20 - 20) for better look and feel.
+# You can change it with the below property (don't include px at the end; use just numbers)
+desktop.view.max.width=1320
+
+# Below properties can be used to change the look and feel of the report
 heading.background.color=#23436a
 heading.color=#ffffff
 
@@ -123,18 +151,41 @@ subtotal.color=#ffffff
 scenario.table.heading.background.color=#efefef
 scenario.table.heading.color=#000000
 ```
-
 ### Default Configs
 * The Report title will appear as `Cucumber Test Summary`
 * Report Location will be - `testReports/CucumberTestSummary.html`
 * Timestamp format will be - `EEEE, dd-MMM-yyyy HH:mm:ss z`
 * Timezone for the timestamp will be `IST`
+* Credential display will be `false`
+* Credential display option will be `feature`
+* Heading Background Color will be - `#23436a`
+* Heading Color will be - `#ffffff`
+* Subtotal Background Color will be - `#cbcbcb`
+* Subtotal Color will be - `#090909`
+* Scenario table Background Color will be - `#efefef`
+* Scenario table Color will be - `#090909`
 * Heading Background color will be - `#23436a`
-* And Subtotal Background Color will be - `#ffffff`
-* Heading Background color will be - `#23436a`
-* And Subtotal Background Color will be - `#ffffff`
-* Scenario table Background color will be - `#efefef`
-* And Subtotal Background Color will be - `#090909`
+
+## Displaying Test Credentials in Test Report
+From v2.0.3 onwards, 'test.user', 'test.password' properties have been removed. 
+In case you were using it already, pls change your implementation to use the below methods 
+```java
+@After
+public void afterTest(Scenario scenario) {
+    //In case scenarios in each feature use shared credentials
+    registerTestUserForFeature(scenario, "contact.the.sdet@gmail.com", "cucumberSummary@123");
+    
+    //Or below if you are setting credentials for each scenario
+    registerTestUserForScenario(scenario, "contact.the.sdet@gmail.com", "cucumberSummary@123");
+}
+
+/*
+    After hook is just an example, you can call these methods anywhere during your execution.
+    This will only work if properties are set 
+        'display.credentials=true'
+        'credentials.display.option=scenario' or 'credentials.display.option=feature'
+*/
+```
 
 ## Override Properties at Runtime
 Sometimes, we need to update values from runtime, E.g., depending on env,
@@ -148,6 +199,7 @@ System.setProperty("cucumber.summary.*","new_value");
 ```
 ## Need Summary Data for some additional logging or reporting purposes?
 You can use the below code in your afterAll hook and get those details.
+This will give you a Map of Features with the scenarios in it along with their status
 ```java
 SummaryData summaryData = CucumberSummaryReporter.getSummaryData();
 Map<String, Map<String, Status>> results = summaryData.results;
