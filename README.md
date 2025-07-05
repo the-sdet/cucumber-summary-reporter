@@ -67,7 +67,7 @@ To use Cucumber Summary Reporter, add the following dependency to your Maven pro
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>2.0.3</version>
+    <version>2.0.4</version>
 </dependency>
 ```
 
@@ -126,6 +126,9 @@ use.feature.name.from.feature.file=false
 show.execution.timestamp=true
 time.stamp.format=EEEE, dd-MMM-yyyy HH:mm:ss z
 time.zone=IST
+
+# Below config will show the test duration at the top of the report
+show.execution.duration=true
 
 # in case you want to add credentials to the report, make use of the below properties.
 # when true, the report will display credentials, else it won't
