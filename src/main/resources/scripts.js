@@ -108,6 +108,7 @@ function downloadReportExcel () {
       const skipped  = outerRow.querySelector('.span2.skipped')?.textContent.trim()  || '0';
       const total    = outerRow.querySelector('.span2.total')?.textContent.trim()    || '0';
       const percent  = outerRow.querySelector('.span2.pass-percent')?.textContent.trim() || '';
+      const duration = document.querySelector('.duration-cell')?.textContent.trim() || '—';
 
       const summary = [
         ['Summary'],
@@ -116,6 +117,7 @@ function downloadReportExcel () {
         ['Skipped', skipped],
         ['Total',   total],
         ['Pass (%)', percent],
+        ['Duration', duration],
         [''] // Spacer
       ];
 
