@@ -22,7 +22,7 @@ table.summary td{width:50%;}
 .chart-container{width:250px;} #myPieChart{width:100%;height:auto;}
 
 .span-container{display:flex;flex:1;min-height: 50px;}
-.span1{flex-basis:45%;padding:10px;display:flex;align-items:center;overflow:hidden;box-sizing:border-box;}
+.span1{flex-basis:45%;padding:10px;display:flex;flex-direction: column;align-items:flex-start;justify-content:center;align-items:flex-start;overflow:hidden;box-sizing:border-box;}
 .span2{flex-basis:10%;padding:10px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;}
 
 .heading,.subtotal{font-weight:bold;min-height:50px;}
@@ -122,6 +122,14 @@ table.dataTable th,
   overflow:hidden;
   white-space:nowrap;
   text-overflow:ellipsis;
+}
+
+.identifier-tags {
+  font-size: 0.85em;
+  color: #666;
+  font-style: italic;
+  display: block;
+  margin-top: 8px;
 }
 
 /* ─── Responsive tweaks ─────────────────────────── */
