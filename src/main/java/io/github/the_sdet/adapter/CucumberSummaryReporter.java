@@ -121,6 +121,12 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   private static final Map<String, List<String>> testUsersForScenarios = new LinkedHashMap<>();
 
   /**
+   * Feature URI → Set of identifiers collected from scenario tags.
+   */
+  private static final Map<String, Set<String>> featureIdentifiers = Collections
+      .synchronizedMap(new LinkedHashMap<>());
+
+  /**
    * Immutable DTO exposing the raw execution summary.
    *
    * @author Pabitra Swain (contact.the.sdet@gmail.com)
@@ -143,6 +149,30 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
       });
 
       this.results = Collections.unmodifiableMap(copy);
+    }
+  }
+
+  /**
+   * Collects identifiers from scenario tags for display in the report.
+   *
+   * @param e
+   *            {@link TestCaseFinished} event containing test case details
+   * @author Pabitra Swain (contact.the.sdet@gmail.com)
+   */
+  private void collectIdentifiers(TestCaseFinished e) {
+    if (!Boolean.parseBoolean(cfg("display.identifiers", defaultDisplayIdentifier))) {
+      return;
+    }
+
+    String uri = e.getTestCase().getUri().toString();
+    Set<String> identifiers = featureIdentifiers.computeIfAbsent(uri, k -> new LinkedHashSet<>());
+
+    // Parse tags for @identifier:XXX pattern
+    for (String tag : e.getTestCase().getTags()) {
+      if (tag.toLowerCase().startsWith("@identifier:")) {
+        String identifier = tag.replace("@identifier:", "").trim();
+        identifiers.add(identifier);
+      }
     }
   }
 
@@ -227,6 +257,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
   private static final String defaultScenarioTableHeadingColor = "#090909";
   private static final String defaultCredentialDisplayOpt = "feature";
   private static final String defaultDisplayCredential = "false";
+  private static final String defaultDisplayIdentifier = "false";
 
   /*
    * --------------------------------------------------- 🚚 Constructors
@@ -356,6 +387,7 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
     featureResults.computeIfAbsent(uri, k -> new LinkedHashMap<>()).put(id,
         new ResultEntry(display, e.getResult().getStatus()));
 
+    collectIdentifiers(e);
   }
 
   /**
@@ -554,6 +586,16 @@ public class CucumberSummaryReporter implements ConcurrentEventListener {
 
       if (Boolean.parseBoolean(cfg("use.package.name", "true")) && !info.packageName.isEmpty()) {
         name = info.packageName + " - " + name;
+      }
+
+      // Append identifiers if enabled
+      if (Boolean.parseBoolean(cfg("display.identifiers", defaultDisplayIdentifier))
+          && featureIdentifiers.containsKey(feat.getKey())) {
+        Set<String> identifiers = featureIdentifiers.get(feat.getKey());
+        if (!identifiers.isEmpty()) {
+          name = "<div>" + name + "</div><div class='identifier-tags'>(" + String.join(", ", identifiers)
+              + ")</div>";
+        }
       }
 
       List<String> credentials = testUsersForFeatures.getOrDefault(feat.getKey(),

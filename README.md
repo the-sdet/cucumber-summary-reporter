@@ -67,7 +67,7 @@ To use Cucumber Summary Reporter, add the following dependency to your Maven pro
 <dependency>
     <groupId>io.github.the-sdet</groupId>
     <artifactId>cucumber-summary-reporter</artifactId>
-    <version>2.0.4</version>
+    <version>2.0.5</version>
 </dependency>
 ```
 
@@ -134,6 +134,10 @@ show.execution.duration=true
 # when true, the report will display credentials, else it won't
 # default configuration is set to 'false'
 display.credentials=true
+
+# Enable an identifier collection from scenario tags
+display.identifiers=true
+
 # E.g., 
 # if you are using different credentials for each scenario, you can go for option=scenario
 # If you use the same credentials for all scenarios for a feature, you can go for option=feature
